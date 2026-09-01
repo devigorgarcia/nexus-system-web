@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Newsreader } from "next/font/google";
+import { connection } from "next/server";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -20,7 +21,12 @@ export const metadata: Metadata = {
   description: "Painel administrativo — PDV, estoque, financeiro",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Opta a app inteira por renderização dinâmica (spec.md §14) — necessário
+  // pro CSP com nonce (src/proxy.ts) funcionar em toda página; CloudFront não
+  // cacheia HTML de qualquer forma (infraestrutura.md), então não há custo.
+  await connection();
+
   return (
     <html
       lang="pt-BR"
