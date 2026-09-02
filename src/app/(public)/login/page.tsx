@@ -1,11 +1,42 @@
+"use client";
+
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-// Placeholder de bootstrap (T1.2) — recria o layout da tela "Login" do design
-// handoff (design_handoff_palacio_das_velas/README.md §1). Submissão real
-// (NextAuth signIn contra o AuthModule da API) entra em T2.3.
+// Recria o layout da tela "Login" do design handoff
+// (design_handoff_palacio_das_velas/README.md §1). Submissão real via NextAuth
+// contra o AuthModule da API (T2.3) — `authorize()` em src/lib/auth.ts é quem
+// de fato valida a credencial, esta tela só repassa e trata o resultado.
 export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(false);
+    setSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const result = await signIn("credentials", {
+      usuario: formData.get("usuario"),
+      senha: formData.get("senha"),
+      redirect: false,
+    });
+
+    if (result?.error) {
+      setError(true);
+      setSubmitting(false);
+      return;
+    }
+
+    router.push("/painel");
+  }
+
   return (
     <div className="flex min-h-screen">
       <div className="hidden w-1/2 flex-col justify-center bg-sidebar px-16 text-sidebar-foreground md:flex">
@@ -15,7 +46,10 @@ export default function LoginPage() {
         </p>
       </div>
       <div className="flex w-full items-center justify-center bg-background px-6 md:w-1/2">
-        <form className="flex w-80 flex-col gap-4">
+        <form
+          className="flex w-80 flex-col gap-4"
+          onSubmit={(event: FormEvent<HTMLFormElement>) => void handleSubmit(event)}
+        >
           <h1 className="mb-2 font-heading text-2xl">Entrar</h1>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="usuario">Usuário</Label>
@@ -31,7 +65,12 @@ export default function LoginPage() {
               required
             />
           </div>
-          <Button type="submit" className="mt-2">
+          {error && (
+            <p className="text-sm text-destructive" role="alert">
+              Usuário ou senha inválidos.
+            </p>
+          )}
+          <Button type="submit" className="mt-2" disabled={submitting}>
             Entrar
           </Button>
           <a href="#" className="text-center text-sm text-muted-foreground">

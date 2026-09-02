@@ -11,13 +11,23 @@ export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
   const mediaDomain = process.env.NEXT_PUBLIC_MEDIA_DOMAIN ?? "";
+  // Telas que buscam dado direto da API do browser (T2.5 em diante, ex.:
+  // src/lib/api-client.ts) precisam de `connect-src` explícito — sem isso o
+  // CSP bloqueia o `fetch()` mesmo com CORS liberado no backend (achado ao
+  // testar a primeira tela que faz isso de verdade, T2.5).
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+  // `img-src` também precisa da API: em dev/antes de T7.3 (bucket S3) existir,
+  // a imagem de produto (T3.13) é servida pela própria API
+  // (`/product-images/:key`), não por `mediaDomain` — mesma origem de
+  // `apiUrl` acima. `mediaDomain` continua reservado pro CDN/S3 real.
 
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' data: ${mediaDomain};
+    img-src 'self' data: ${apiUrl} ${mediaDomain};
     font-src 'self' data:;
+    connect-src 'self' ${apiUrl};
     object-src 'none';
     base-uri 'self';
     form-action 'self';
