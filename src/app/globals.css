@@ -143,3 +143,22 @@
     @apply font-sans;
   }
 }
+
+/* Cupom de venda (T4.9, spec.md §7/§9 — impressão disparada só depois da
+   confirmação de pagamento, "Imprimir 2 vias" do modal de recibo em
+   pedidos-screen.tsx). Esconde tudo, exceto o próprio recibo. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt-cupom,
+  #receipt-cupom * {
+    visibility: visible;
+  }
+  #receipt-cupom {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}

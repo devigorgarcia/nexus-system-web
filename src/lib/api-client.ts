@@ -13,6 +13,18 @@ export class ApiError extends Error {
   }
 }
 
+// NestJS trata handler que devolve `null`/`undefined` como "sem corpo" —
+// manda a resposta com `Content-Length: 0` (200 OK, sem nenhum byte),
+// nunca o JSON literal `"null"` (achado ao vivo construindo T5.2:
+// `GET /cash-register/current` sem nenhum caixa aberto devolve exatamente
+// isso). `response.json()` numa string vazia lança `SyntaxError:
+// Unexpected end of JSON input` — lida aqui uma vez, protege toda chamada
+// de `apiFetch`/`apiUpload`, não só quem sabe desse detalhe.
+async function parseJsonBody<T>(response: Response): Promise<T> {
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export async function apiFetch<T>(
   path: string,
   init?: RequestInit,
@@ -31,7 +43,7 @@ export async function apiFetch<T>(
   });
 
   if (!response.ok) {
-    const body: unknown = await response.json().catch(() => ({}));
+    const body: unknown = await parseJsonBody(response).catch(() => ({}));
     const message =
       body && typeof body === "object" && "message" in body
         ? String((body as { message: unknown }).message)
@@ -43,7 +55,7 @@ export async function apiFetch<T>(
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  return parseJsonBody<T>(response);
 }
 
 // Upload de arquivo (multipart/form-data, T3.8) — variante de `apiFetch` sem
@@ -59,7 +71,7 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
   });
 
   if (!response.ok) {
-    const body: unknown = await response.json().catch(() => ({}));
+    const body: unknown = await parseJsonBody(response).catch(() => ({}));
     const message =
       body && typeof body === "object" && "message" in body
         ? String((body as { message: unknown }).message)
@@ -67,5 +79,5 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     throw new ApiError(response.status, message);
   }
 
-  return response.json() as Promise<T>;
+  return parseJsonBody<T>(response);
 }

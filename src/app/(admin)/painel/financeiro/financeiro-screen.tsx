@@ -1,0 +1,436 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { apiFetch, ApiError } from "@/lib/api-client";
+import type {
+  CashRegisterItem,
+  CashRegistersPage,
+  DreReport,
+  SalesByEmployeeRow,
+  SalesByProductReport,
+} from "./types";
+
+function formatCurrency(value: string | number) {
+  return Number(value).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthAgoIso() {
+  const date = new Date();
+  date.setDate(date.getDate() - 30);
+  return date.toISOString().slice(0, 10);
+}
+
+export function FinanceiroScreen() {
+  const [tab, setTab] = useState("caixa");
+
+  // --- Caixa (T5.1/T5.2) ---
+  const [current, setCurrent] = useState<CashRegisterItem | null>(null);
+  const [history, setHistory] = useState<CashRegistersPage | null>(null);
+  const [openDialogOpen, setOpenDialogOpen] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [openingAmount, setOpeningAmount] = useState("");
+  const [closingAmount, setClosingAmount] = useState("");
+  const [cashError, setCashError] = useState<string | null>(null);
+  const [cashSaving, setCashSaving] = useState(false);
+
+  // Contador de sequência (achado escrevendo o e2e Playwright deste
+  // fluxo, T5.2/T5.6): o efeito de montagem e as ações de abrir/fechar
+  // caixa disparam `reloadCaixa()` em momentos diferentes, mas as
+  // respostas podem chegar fora de ordem (mais visível em dev por causa
+  // do double-invoke do Strict Mode, mas é uma corrida de verdade —
+  // qualquer requisição lenta na montagem pode voltar DEPOIS de uma ação
+  // do usuário e sobrescrever o estado recém-atualizado com dado velho).
+  // Só a resposta da chamada mais recente é aplicada.
+  const reloadSeq = useRef(0);
+
+  async function reloadCaixa() {
+    const seq = ++reloadSeq.current;
+    const [currentData, historyData] = await Promise.all([
+      apiFetch<CashRegisterItem | null>("/cash-register/current"),
+      apiFetch<CashRegistersPage>("/cash-register?pageSize=10"),
+    ]);
+    if (seq !== reloadSeq.current) return;
+    setCurrent(currentData);
+    setHistory(historyData);
+  }
+
+  useEffect(() => {
+    void reloadCaixa();
+  }, []);
+
+  async function handleOpenCaixa() {
+    setCashSaving(true);
+    setCashError(null);
+    try {
+      await apiFetch("/cash-register/open", {
+        method: "POST",
+        body: JSON.stringify({ openingAmount }),
+      });
+      setOpenDialogOpen(false);
+      setOpeningAmount("");
+      await reloadCaixa();
+    } catch (err) {
+      setCashError(err instanceof ApiError ? err.message : "Erro ao abrir caixa.");
+    } finally {
+      setCashSaving(false);
+    }
+  }
+
+  async function handleCloseCaixa() {
+    if (!current) return;
+    setCashSaving(true);
+    setCashError(null);
+    try {
+      await apiFetch(`/cash-register/${current.id}/close`, {
+        method: "POST",
+        body: JSON.stringify({ closingAmount }),
+      });
+      setCloseDialogOpen(false);
+      setClosingAmount("");
+      await reloadCaixa();
+    } catch (err) {
+      setCashError(err instanceof ApiError ? err.message : "Erro ao fechar caixa.");
+    } finally {
+      setCashSaving(false);
+    }
+  }
+
+  // --- Demonstrativo / DRE (T5.5) ---
+  const [dreFrom, setDreFrom] = useState(monthAgoIso());
+  const [dreTo, setDreTo] = useState(todayIso());
+  const [dre, setDre] = useState<DreReport | null>(null);
+
+  useEffect(() => {
+    if (tab !== "demonstrativo") return;
+    void apiFetch<DreReport>(`/reports/dre?from=${dreFrom}&to=${dreTo}`).then(setDre);
+  }, [tab, dreFrom, dreTo]);
+
+  // --- Relatórios (T5.3/T5.4) ---
+  const [reportFrom, setReportFrom] = useState(monthAgoIso());
+  const [reportTo, setReportTo] = useState(todayIso());
+  const [byProduct, setByProduct] = useState<SalesByProductReport | null>(null);
+  const [byEmployee, setByEmployee] = useState<SalesByEmployeeRow[]>([]);
+
+  useEffect(() => {
+    if (tab !== "relatorios") return;
+    void apiFetch<SalesByProductReport>(
+      `/reports/sales-by-product?from=${reportFrom}&to=${reportTo}`,
+    ).then(setByProduct);
+    void apiFetch<SalesByEmployeeRow[]>(
+      `/reports/sales-by-employee?from=${reportFrom}&to=${reportTo}`,
+    ).then(setByEmployee);
+  }, [tab, reportFrom, reportTo]);
+
+  return (
+    <div className="mx-auto max-w-5xl px-6 py-8">
+      <h1 className="mb-6 font-heading text-2xl">Financeiro</h1>
+
+      <Tabs value={tab} onValueChange={(value) => setTab(value as string)}>
+        <TabsList>
+          <TabsTrigger value="caixa">Caixa</TabsTrigger>
+          <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
+          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="caixa" className="mt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Caixa de hoje</CardTitle>
+                {current && (
+                  <Badge className="bg-success text-success-foreground">aberto</Badge>
+                )}
+              </CardHeader>
+              <CardContent>
+                {current ? (
+                  <div className="flex flex-col gap-2 text-sm">
+                    <p>Responsável: {current.responsavel.name}</p>
+                    <p>Abertura: {formatCurrency(current.openingAmount)}</p>
+                    <p>
+                      Aberto em: {new Date(current.openedAt).toLocaleString("pt-BR")}
+                    </p>
+                    <Button
+                      className="mt-2 w-fit"
+                      onClick={() => setCloseDialogOpen(true)}
+                    >
+                      Fechar caixa
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 text-sm">
+                    <p className="text-muted-foreground">Nenhum caixa aberto.</p>
+                    <Button className="w-fit" onClick={() => setOpenDialogOpen(true)}>
+                      Abrir caixa
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <h2 className="mt-6 mb-3 font-heading text-lg">Histórico</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Responsável</TableHead>
+                <TableHead>Abertura</TableHead>
+                <TableHead>Fechamento</TableHead>
+                <TableHead>Esperado</TableHead>
+                <TableHead>Diferença</TableHead>
+                <TableHead>Aberto em</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history?.items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <Badge
+                      className={
+                        item.status === "ABERTO"
+                          ? "bg-success text-success-foreground"
+                          : "bg-secondary text-secondary-foreground"
+                      }
+                    >
+                      {item.status === "ABERTO" ? "aberto" : "fechado"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{item.responsavel.name}</TableCell>
+                  <TableCell>{formatCurrency(item.openingAmount)}</TableCell>
+                  <TableCell>
+                    {item.closingAmount ? formatCurrency(item.closingAmount) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    {item.expectedAmount ? formatCurrency(item.expectedAmount) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    {item.difference ? formatCurrency(item.difference) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(item.openedAt).toLocaleString("pt-BR")}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
+
+        <TabsContent value="demonstrativo" className="mt-4">
+          <div className="mb-4 flex gap-3">
+            <div>
+              <Label htmlFor="dre-from" className="text-sm">
+                De
+              </Label>
+              <Input
+                id="dre-from"
+                type="date"
+                value={dreFrom}
+                onChange={(e) => setDreFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="dre-to" className="text-sm">
+                Até
+              </Label>
+              <Input
+                id="dre-to"
+                type="date"
+                value={dreTo}
+                onChange={(e) => setDreTo(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">Receita</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-semibold">
+                {dre ? formatCurrency(dre.revenue) : "—"}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                {/* CMV, não "despesas" (design handoff mostra um card
+                    genérico de despesas — o sistema não modela despesas
+                    gerais, só custo de produto vendido, T5.5). */}
+                <CardTitle className="text-sm text-muted-foreground">CMV</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-semibold">
+                {dre ? formatCurrency(dre.cogs) : "—"}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-muted-foreground">Margem</CardTitle>
+              </CardHeader>
+              <CardContent className="text-2xl font-semibold">
+                {dre ? formatCurrency(dre.margin) : "—"}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="relatorios" className="mt-4">
+          <div className="mb-4 flex gap-3">
+            <div>
+              <Label htmlFor="report-from" className="text-sm">
+                De
+              </Label>
+              <Input
+                id="report-from"
+                type="date"
+                value={reportFrom}
+                onChange={(e) => setReportFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="report-to" className="text-sm">
+                Até
+              </Label>
+              <Input
+                id="report-to"
+                type="date"
+                value={reportTo}
+                onChange={(e) => setReportTo(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <h2 className="mb-3 font-heading text-lg">Vendas por produto</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>Quantidade</TableHead>
+                <TableHead>Receita</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {byProduct?.byProduct.map((row) => (
+                <TableRow key={row.productId}>
+                  <TableCell>{row.productName}</TableCell>
+                  <TableCell>{row.quantitySold}</TableCell>
+                  <TableCell>{formatCurrency(row.revenue)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {byProduct && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Total do período: {formatCurrency(byProduct.totalRevenue)}
+            </p>
+          )}
+
+          <h2 className="mt-6 mb-3 font-heading text-lg">Vendas por funcionário</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Vendedor</TableHead>
+                <TableHead>Vendas</TableHead>
+                <TableHead>Receita</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {byEmployee.map((row) => (
+                <TableRow key={row.vendedorId}>
+                  <TableCell>{row.vendedorName}</TableCell>
+                  <TableCell>{row.salesCount}</TableCell>
+                  <TableCell>{formatCurrency(row.revenue)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={openDialogOpen} onOpenChange={setOpenDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Abrir caixa</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 px-4">
+            <Label htmlFor="opening-amount">Valor de abertura (R$)</Label>
+            <Input
+              id="opening-amount"
+              value={openingAmount}
+              onChange={(e) => setOpeningAmount(e.target.value)}
+            />
+          </div>
+          {cashError && (
+            <p className="px-4 text-sm text-destructive">{cashError}</p>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => void handleOpenCaixa()}
+              disabled={cashSaving || !openingAmount}
+            >
+              Abrir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fechar caixa</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5 px-4">
+            <Label htmlFor="closing-amount">Valor contado na gaveta (R$)</Label>
+            <Input
+              id="closing-amount"
+              value={closingAmount}
+              onChange={(e) => setClosingAmount(e.target.value)}
+            />
+          </div>
+          {cashError && (
+            <p className="px-4 text-sm text-destructive">{cashError}</p>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => void handleCloseCaixa()}
+              disabled={cashSaving || !closingAmount}
+            >
+              Confirmar fechamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

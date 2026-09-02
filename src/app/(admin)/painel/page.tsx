@@ -23,8 +23,22 @@ export default async function AdminHomePage() {
   const canManagePromotions = isBronze || permissions.includes("gerenciar:promocoes");
   const canManageUsers = permissions.includes("gerenciar:usuarios");
   const canManageRoles = permissions.includes("gerenciar:papeis");
+  const canAccessFinance = isBronze || permissions.includes("acessar:financeiro");
 
   const sections = [
+    // PDV/Pedidos (Fase 4, constitution.md §1.6 — prioridade nº1) sem gate
+    // de permissão: qualquer funcionário logado opera as duas telas,
+    // Vendedor incluso (nasce sem nenhuma permissão granular).
+    {
+      href: "/painel/pdv",
+      title: "PDV",
+      description: "Montar carrinho e enviar pedido pra fila de pagamento.",
+    },
+    {
+      href: "/painel/pedidos",
+      title: "Pedidos",
+      description: "Cobrar pedidos pendentes e conferir o histórico.",
+    },
     canManageProducts && {
       href: "/painel/produtos",
       title: "Produtos",
@@ -54,6 +68,11 @@ export default async function AdminHomePage() {
       href: "/painel/produtos/promocoes",
       title: "Promoções",
       description: "Preço promocional por período ou dia da semana.",
+    },
+    canAccessFinance && {
+      href: "/painel/financeiro",
+      title: "Financeiro",
+      description: "Caixa, demonstrativo e relatórios de vendas.",
     },
     (canManageUsers || canManageRoles) &&
       !isBronze && {

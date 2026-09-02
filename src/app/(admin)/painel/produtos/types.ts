@@ -14,7 +14,10 @@ export interface ProductListItem {
   subcategoryId: string | null;
   subcategory: { id: string; name: string } | null;
   minStock: number;
-  stock: number;
+  // String, não number (T4.11) — `Product.stock` virou `Decimal` no backend
+  // (produto vendido por peso/metro/volume aceita saldo fracionário), mesmo
+  // padrão de `salePrice`/`costPrice` acima.
+  stock: string;
   storageInstructions: string | null;
   unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
   pricePerUnit: string | null;

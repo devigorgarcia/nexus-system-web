@@ -9,7 +9,8 @@ export interface StockSummary {
 export interface StockMovementItem {
   id: string;
   type: "ENTRADA" | "SAIDA";
-  quantity: number;
+  // String, não number (T4.11) — `StockMovement.quantity` virou `Decimal`.
+  quantity: string;
   createdAt: string;
   product: { id: string; name: string };
   user: { id: string; name: string };

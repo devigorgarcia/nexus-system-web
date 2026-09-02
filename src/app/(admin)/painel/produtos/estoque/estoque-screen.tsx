@@ -47,8 +47,11 @@ const TODOS_TIPOS = "__todos_tipos__";
 type StockStatus = "ok" | "baixo" | "crítico";
 
 function statusFor(product: ProductListItem): StockStatus {
-  if (product.stock === 0) return "crítico";
-  if (product.stock < product.minStock) return "baixo";
+  // `stock` é string (T4.11, Decimal no backend) — sempre comparar como
+  // número, nunca com o literal `"0"`/`< minStock` direto na string.
+  const stock = Number(product.stock);
+  if (stock === 0) return "crítico";
+  if (stock < product.minStock) return "baixo";
   return "ok";
 }
 
@@ -183,7 +186,11 @@ export function EstoqueScreen() {
         body: JSON.stringify({
           productId: form.productId,
           type: form.type,
-          quantity: Number(form.quantity),
+          // String, não `Number(...)` (T4.11) — `CreateStockMovementDto.
+          // quantity` virou um padrão decimal (produto vendido por peso/
+          // metro/volume aceita fração), mesmo formato de `costPrice`/
+          // `salePrice` já usado no formulário de Produtos.
+          quantity: form.quantity,
         }),
       });
       setDialogOpen(false);
