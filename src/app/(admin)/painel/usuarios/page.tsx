@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
+import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
 import { UsuariosScreen } from "./usuarios-screen";
 
-// Gestão de usuários e papéis (T2.5, design handoff §9). Bronze não usa RBAC
-// (usuário único, acesso total implícito, T2.1/T2.4) — a tela nem existe pra
-// esse plano. Fora isso, precisa de pelo menos uma das duas permissões que
-// essa tela cobre; cada aba interna ainda decide o que mostrar com a
-// permissão específica dela.
+// Gestão de usuários e papéis (T2.5, design handoff §9) — precisa do módulo
+// `usuarios` habilitado (rota /plataforma) e de pelo menos uma das duas
+// permissões que essa tela cobre; cada aba interna ainda decide o que
+// mostrar com a permissão específica dela.
 export default async function UsuariosPage() {
   const session = await getServerSession(authOptions);
 
@@ -15,8 +15,13 @@ export default async function UsuariosPage() {
     redirect("/login");
   }
 
-  if (session.user.plan === "BRONZE") {
-    redirect("/painel");
+  if (!session.user.enabledModules.includes("usuarios")) {
+    redirect(
+      getDefaultRoute({
+        permissions: session.user.permissions,
+        enabledModules: session.user.enabledModules,
+      }) ?? "/painel/pdv",
+    );
   }
 
   const canManageUsers = session.user.permissions.includes(
@@ -27,7 +32,12 @@ export default async function UsuariosPage() {
   );
 
   if (!canManageUsers && !canManageRoles) {
-    redirect("/painel");
+    redirect(
+      getDefaultRoute({
+        permissions: session.user.permissions,
+        enabledModules: session.user.enabledModules,
+      }) ?? "/painel/pdv",
+    );
   }
 
   return (

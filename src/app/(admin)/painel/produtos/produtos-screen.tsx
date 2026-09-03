@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Ban, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -380,20 +381,24 @@ export function ProdutosScreen() {
               <TableCell>R$ {product.salePrice}</TableCell>
               <TableCell>{product.stock}</TableCell>
               <TableCell className="text-right">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => openEditSheet(product)}
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void handleDelete(product)}
-                >
-                  Inativar
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEditSheet(product)}
+                  >
+                    <Pencil className="size-3.5" />
+                    Editar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void handleDelete(product)}
+                  >
+                    <Ban className="size-3.5" />
+                    Inativar
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

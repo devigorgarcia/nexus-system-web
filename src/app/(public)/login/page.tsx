@@ -1,8 +1,9 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +35,22 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/painel");
+    // Mesma tela de login pra empresa e Admin da plataforma (o e-mail já
+    // resolve pra um ou outro na API) — só o destino pós-login muda. Não
+    // existe mais hub em /painel: o padrão pós-login de empresa é ir direto
+    // pro PDV (primeiro item da sidebar); getDefaultRoute cobre o caso raro
+    // de a empresa não ter módulo nenhum liberado pra esse usuário.
+    const session = await getSession();
+    if (session?.user.isPlatformAdmin) {
+      router.push("/plataforma");
+      return;
+    }
+    router.push(
+      getDefaultRoute({
+        permissions: session?.user.permissions ?? [],
+        enabledModules: session?.user.enabledModules ?? [],
+      }) ?? "/painel/pdv",
+    );
   }
 
   return (

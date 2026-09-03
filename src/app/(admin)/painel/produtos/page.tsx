@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
+import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
 import { ProdutosScreen } from "./produtos-screen";
 
-// Tela de cadastro de produtos (T3.5). Mesma regra de guard de
-// `/painel/produtos/categorias` (T3.4): Bronze tem acesso total implícito
-// (usuário único, T2.1/T2.4); Prata+ precisa de `gerenciar:produtos`.
+// Tela de cadastro de produtos (T3.5) — precisa do módulo `produtos`
+// habilitado (rota /plataforma) e da permissão `gerenciar:produtos`.
 export default async function ProdutosPage() {
   const session = await getServerSession(authOptions);
 
@@ -14,11 +14,16 @@ export default async function ProdutosPage() {
   }
 
   const canManageProducts =
-    session.user.plan === "BRONZE" ||
+    session.user.enabledModules.includes("produtos") &&
     session.user.permissions.includes("gerenciar:produtos");
 
   if (!canManageProducts) {
-    redirect("/painel");
+    redirect(
+      getDefaultRoute({
+        permissions: session.user.permissions,
+        enabledModules: session.user.enabledModules,
+      }) ?? "/painel/pdv",
+    );
   }
 
   return <ProdutosScreen />;

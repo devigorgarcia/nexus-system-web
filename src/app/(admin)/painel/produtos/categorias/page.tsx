@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
+import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
 import { CategoriasScreen } from "./categorias-screen";
 
-// Gestão de categorias de produto (T3.4). Ao contrário de Usuários/Papéis
-// (T2.5, bloqueada pra Bronze — não faz sentido RBAC com um usuário só),
-// Produto/Categoria existe em qualquer plano: loja Bronze também cadastra
-// produto. Bronze tem acesso total implícito (T2.1/T2.4) — só Prata+ precisa
-// da permissão `gerenciar:produtos` de verdade.
+// Gestão de categorias de produto (T3.4) — precisa do módulo `produtos`
+// habilitado (rota /plataforma) e da permissão `gerenciar:produtos`.
 export default async function CategoriasPage() {
   const session = await getServerSession(authOptions);
 
@@ -16,11 +14,16 @@ export default async function CategoriasPage() {
   }
 
   const canManageProducts =
-    session.user.plan === "BRONZE" ||
+    session.user.enabledModules.includes("produtos") &&
     session.user.permissions.includes("gerenciar:produtos");
 
   if (!canManageProducts) {
-    redirect("/painel");
+    redirect(
+      getDefaultRoute({
+        permissions: session.user.permissions,
+        enabledModules: session.user.enabledModules,
+      }) ?? "/painel/pdv",
+    );
   }
 
   return <CategoriasScreen />;

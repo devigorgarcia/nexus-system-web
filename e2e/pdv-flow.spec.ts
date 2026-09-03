@@ -12,7 +12,7 @@ async function login(page: import("@playwright/test").Page) {
   await page.getByLabel("Usuário").fill(ADMIN_EMAIL);
   await page.getByLabel("Senha").fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/painel$/);
+  await expect(page).toHaveURL(/\/painel\/pdv$/);
 }
 
 test("PDV: login → buscar → carrinho → finalizar → cobrar → confirmar → estoque atualizado", async ({

@@ -16,7 +16,7 @@ test("Financeiro: abrir caixa → card mostra aberto → fechar caixa → volta 
   await page.getByLabel("Usuário").fill(ADMIN_EMAIL);
   await page.getByLabel("Senha").fill(ADMIN_PASSWORD);
   await page.getByRole("button", { name: "Entrar" }).click();
-  await expect(page).toHaveURL(/\/painel$/);
+  await expect(page).toHaveURL(/\/painel\/pdv$/);
 
   await page.goto("/painel/financeiro");
 

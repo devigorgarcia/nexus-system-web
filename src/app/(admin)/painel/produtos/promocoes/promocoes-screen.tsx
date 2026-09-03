@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -260,10 +261,11 @@ export function PromocoesScreen() {
               <TableCell className="text-right">
                 {promotion.status !== "encerrada" && (
                   <Button
-                    variant="ghost"
+                    variant="destructive"
                     size="sm"
                     onClick={() => void handleEnd(promotion)}
                   >
+                    <Ban className="size-3.5" />
                     Encerrar
                   </Button>
                 )}

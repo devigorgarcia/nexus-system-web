@@ -1,10 +1,13 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
+import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
 import { EstoqueScreen } from "./estoque-screen";
 
-// Tela de estoque e movimentação (T3.7). Mesma regra de guard das outras
-// telas de produto (T3.4/T3.5): Bronze tem acesso total implícito.
+// Tela de estoque e movimentação (T3.7) — precisa do módulo `estoque`
+// habilitado (rota /plataforma) e da permissão `gerenciar:produtos` (mesma
+// permissão de Produto/Categoria, gate de módulo separado no backend
+// `stock-movements.controller.ts`).
 export default async function EstoquePage() {
   const session = await getServerSession(authOptions);
 
@@ -13,11 +16,16 @@ export default async function EstoquePage() {
   }
 
   const canManageProducts =
-    session.user.plan === "BRONZE" ||
+    session.user.enabledModules.includes("estoque") &&
     session.user.permissions.includes("gerenciar:produtos");
 
   if (!canManageProducts) {
-    redirect("/painel");
+    redirect(
+      getDefaultRoute({
+        permissions: session.user.permissions,
+        enabledModules: session.user.enabledModules,
+      }) ?? "/painel/pdv",
+    );
   }
 
   return <EstoqueScreen />;

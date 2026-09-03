@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Eye, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -315,16 +316,24 @@ export function ImportacoesScreen() {
               </TableCell>
               <TableCell>{item.quantity}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="sm" onClick={() => openReview(item)}>
-                  Revisar
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void handleReject(item)}
-                >
-                  Rejeitar
-                </Button>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openReview(item)}
+                  >
+                    <Eye className="size-3.5" />
+                    Revisar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void handleReject(item)}
+                  >
+                    <X className="size-3.5" />
+                    Rejeitar
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
+import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
 import { SubcategoriasScreen } from "./subcategorias-screen";
 
-// Gestão de subcategorias (T3.18) — mesma regra de guard das outras telas
-// de produto (T3.4): Bronze tem acesso total implícito.
+// Gestão de subcategorias (T3.18) — precisa do módulo `produtos` habilitado
+// (rota /plataforma) e da permissão `gerenciar:produtos`.
 export default async function SubcategoriasPage() {
   const session = await getServerSession(authOptions);
 
@@ -13,11 +14,16 @@ export default async function SubcategoriasPage() {
   }
 
   const canManageProducts =
-    session.user.plan === "BRONZE" ||
+    session.user.enabledModules.includes("produtos") &&
     session.user.permissions.includes("gerenciar:produtos");
 
   if (!canManageProducts) {
-    redirect("/painel");
+    redirect(
+      getDefaultRoute({
+        permissions: session.user.permissions,
+        enabledModules: session.user.enabledModules,
+      }) ?? "/painel/pdv",
+    );
   }
 
   return <SubcategoriasScreen />;

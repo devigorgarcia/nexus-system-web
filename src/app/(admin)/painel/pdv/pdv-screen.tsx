@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -395,10 +396,11 @@ export function PdvScreen({
                   type="button"
                   variant="ghost"
                   size="icon"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   onClick={() => removeFromCart(line.productId)}
                   aria-label={`Remover ${line.name}`}
                 >
-                  ✕
+                  <X className="size-3.5" />
                 </Button>
               </li>
             ))}

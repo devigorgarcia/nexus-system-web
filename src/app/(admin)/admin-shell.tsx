@@ -37,7 +37,7 @@ export function AdminShell({ navItems, user, children }: AdminShellProps) {
     <div className="flex min-h-screen">
       <aside className="flex w-[220px] flex-shrink-0 flex-col bg-sidebar py-6 text-sidebar-foreground">
         <Link
-          href="/painel"
+          href={navItems[0]?.href ?? "/painel/pdv"}
           className="mb-4 flex items-center gap-2.5 border-b border-sidebar-border px-6 pb-6"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-[15px]">

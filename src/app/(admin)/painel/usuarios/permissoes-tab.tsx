@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -124,10 +125,11 @@ export function PermissoesTab() {
                 </div>
                 {!role.isDefault && (
                   <Button
-                    variant="ghost"
+                    variant="destructive"
                     size="sm"
                     onClick={() => void handleDeleteRole(role)}
                   >
+                    <Trash2 className="size-3.5" />
                     Apagar
                   </Button>
                 )}

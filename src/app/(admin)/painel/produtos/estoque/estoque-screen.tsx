@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ArrowRightLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -353,10 +354,11 @@ export function EstoqueScreen() {
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => openMovementDialog(product.id)}
                   >
+                    <ArrowRightLeft className="size-3.5" />
                     Movimentar
                   </Button>
                 </TableCell>

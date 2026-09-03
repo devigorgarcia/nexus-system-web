@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -149,10 +150,11 @@ export function CategoriasScreen() {
               </TableCell>
               <TableCell className="text-right">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => openEditDialog(category)}
                 >
+                  <Pencil className="size-3.5" />
                   Editar
                 </Button>
               </TableCell>
