@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { SubcategoriasScreen } from "./subcategorias-screen";
 
 // Gestão de subcategorias (T3.18) — precisa do módulo `produtos` habilitado
-// (rota /plataforma) e da permissão `gerenciar:produtos`.
+// (rota /painel-admin) e da permissão `gerenciar:produtos`.
 export default async function SubcategoriasPage() {
   const session = await getServerSession(authOptions);
 

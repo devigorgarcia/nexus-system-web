@@ -7,7 +7,7 @@ import { PromocoesScreen } from "./promocoes-screen";
 // Gestão de promoções (T3.11) — só Admin/Dono (PRD §4.12): diferente das
 // outras telas de produto, aqui a permissão é `gerenciar:promocoes`, não
 // `gerenciar:produtos` (Estoquista não gerencia promoção). Precisa do módulo
-// `promocoes` habilitado (rota /plataforma).
+// `promocoes` habilitado (rota /painel-admin).
 export default async function PromocoesPage() {
   const session = await getServerSession(authOptions);
 

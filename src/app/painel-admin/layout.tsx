@@ -10,7 +10,7 @@ import { PlatformShell } from "./platform-shell";
 // backend, isto aqui só evita a tela piscar antes do 403 da API).
 export default async function PlatformLayout({
   children,
-}: LayoutProps<"/plataforma">) {
+}: LayoutProps<"/painel-admin">) {
   const session = await getServerSession(authOptions);
 
   if (!session) {

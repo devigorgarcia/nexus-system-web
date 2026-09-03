@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { ImportacoesScreen } from "./importacoes-screen";
 
 // Upload de planilha de fornecedor + fila de revisão (T3.8/T3.9) — precisa
-// do módulo `produtos` habilitado (rota /plataforma) e da permissão
+// do módulo `produtos` habilitado (rota /painel-admin) e da permissão
 // `gerenciar:produtos`.
 export default async function ImportacoesPage() {
   const session = await getServerSession(authOptions);

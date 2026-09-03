@@ -21,7 +21,7 @@ export function getNavSections({
 }: {
   permissions: string[];
   // Módulo habilitado pra empresa pelo Admin da plataforma (rota
-  // /plataforma) — modelo de negócio é por módulo (docs/decisions.md
+  // /painel-admin) — modelo de negócio é por módulo (docs/decisions.md
   // 2026-09-03), gate independente de permissão, checado de novo no backend
   // por `ModuleGuard` (nunca só escondido aqui).
   enabledModules: string[];

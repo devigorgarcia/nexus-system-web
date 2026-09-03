@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { CategoriasScreen } from "./categorias-screen";
 
 // Gestão de categorias de produto (T3.4) — precisa do módulo `produtos`
-// habilitado (rota /plataforma) e da permissão `gerenciar:produtos`.
+// habilitado (rota /painel-admin) e da permissão `gerenciar:produtos`.
 export default async function CategoriasPage() {
   const session = await getServerSession(authOptions);
 

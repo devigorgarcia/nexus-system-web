@@ -21,9 +21,9 @@ export default async function AdminLayout({
 
   // Admin da plataforma não é usuário de nenhuma empresa (companyId nulo) —
   // não faz sentido ele entrar no painel de uma empresa, a rota dele é
-  // /plataforma.
+  // /painel-admin.
   if (session.user.isPlatformAdmin) {
-    redirect("/plataforma");
+    redirect("/painel-admin");
   }
 
   const navItems = getNavSections({

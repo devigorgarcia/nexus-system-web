@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { UsuariosScreen } from "./usuarios-screen";
 
 // Gestão de usuários e papéis (T2.5, design handoff §9) — precisa do módulo
-// `usuarios` habilitado (rota /plataforma) e de pelo menos uma das duas
+// `usuarios` habilitado (rota /painel-admin) e de pelo menos uma das duas
 // permissões que essa tela cobre; cada aba interna ainda decide o que
 // mostrar com a permissão específica dela.
 export default async function UsuariosPage() {

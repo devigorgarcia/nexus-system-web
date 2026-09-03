@@ -6,7 +6,7 @@ import { FinanceiroScreen } from "./financeiro-screen";
 
 // Financeiro (T5.2) — só quem tem `acessar:financeiro` (Admin/Dono ou
 // Financeiro, permission-catalog.ts) numa empresa com o módulo `financeiro`
-// habilitado (rota /plataforma, docs/decisions.md 2026-09-03).
+// habilitado (rota /painel-admin, docs/decisions.md 2026-09-03).
 export default async function FinanceiroPage() {
   const session = await getServerSession(authOptions);
 

@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 // Formato devolvido por POST /auth/login na API (palacio-velas-api,
 // src/auth/session-user.ts) — nunca inclui passwordHash. Admin da plataforma
-// (rota /plataforma) vem com companyId nulo e isPlatformAdmin: true.
+// (rota /painel-admin) vem com companyId nulo e isPlatformAdmin: true.
 interface ApiSessionUser {
   id: string;
   name: string;

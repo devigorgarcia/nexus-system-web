@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { ProdutosScreen } from "./produtos-screen";
 
 // Tela de cadastro de produtos (T3.5) — precisa do módulo `produtos`
-// habilitado (rota /plataforma) e da permissão `gerenciar:produtos`.
+// habilitado (rota /painel-admin) e da permissão `gerenciar:produtos`.
 export default async function ProdutosPage() {
   const session = await getServerSession(authOptions);
 

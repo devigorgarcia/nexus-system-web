@@ -8,7 +8,7 @@ import { PdvScreen } from "./pdv-screen";
 // destino padrão pós-login (login/page.tsx). Sem gate de permissão: qualquer
 // funcionário logado opera o PDV, Vendedor incluso (nasce sem nenhuma
 // permissão granular, permission-catalog.ts). Só o módulo `vendas` (rota
-// /plataforma) precisa estar habilitado.
+// /painel-admin) precisa estar habilitado.
 export default async function PdvPage() {
   const session = await getServerSession(authOptions);
 

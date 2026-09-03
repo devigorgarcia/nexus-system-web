@@ -42,7 +42,7 @@ export default function LoginPage() {
     // de a empresa não ter módulo nenhum liberado pra esse usuário.
     const session = await getSession();
     if (session?.user.isPlatformAdmin) {
-      router.push("/plataforma");
+      router.push("/painel-admin");
       return;
     }
     router.push(
