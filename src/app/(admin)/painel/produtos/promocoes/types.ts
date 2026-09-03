@@ -1,4 +1,4 @@
-// Espelha a resposta da API (palacio-velas-api/src/promotions) — T3.10/T3.11.
+// Espelha a resposta da API (nexus-api/src/promotions) — T3.10/T3.11.
 export type PromotionStatus = "vigente" | "futura" | "encerrada";
 
 export interface PromotionItem {

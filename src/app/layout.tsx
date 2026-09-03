@@ -17,7 +17,7 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: "Palácio das Velas",
+  title: "Nexus",
   description: "Painel administrativo — PDV, estoque, financeiro",
 };
 

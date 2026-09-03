@@ -13,7 +13,7 @@ type AdminShellProps = {
 };
 
 // Sidebar 220px fixa — recriando o handoff de design
-// (design_handoff_palacio_das_velas/README.md, seção "Screens / Views" e
+// (design_handoff_nexus/README.md, seção "Screens / Views" e
 // "Design Tokens"). O layout anterior (T1.3) não tinha nenhum shell de
 // navegação persistente, só os cards do hub em /painel.
 //
@@ -43,7 +43,7 @@ export function AdminShell({ navItems, user, children }: AdminShellProps) {
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-[15px]">
             P
           </span>
-          <span className="font-heading text-[15px]">Palácio das Velas</span>
+          <span className="font-heading text-[15px]">Nexus</span>
         </Link>
 
         <nav className="flex flex-col">

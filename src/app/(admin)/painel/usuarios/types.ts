@@ -1,4 +1,4 @@
-// Espelha o `select`/`ROLE_SELECT` da API (palacio-velas-api/src/users,
+// Espelha o `select`/`ROLE_SELECT` da API (nexus-api/src/users,
 // src/roles) — T2.5.
 export interface UserListItem {
   id: string;

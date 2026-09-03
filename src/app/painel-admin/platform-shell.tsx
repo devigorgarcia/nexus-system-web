@@ -22,7 +22,7 @@ export function PlatformShell({ user, children }: PlatformShellProps) {
             P
           </span>
           <div className="flex flex-col leading-tight">
-            <span className="font-heading text-[15px]">Palácio das Velas</span>
+            <span className="font-heading text-[15px]">Nexus</span>
             <span className="text-[11px] text-sidebar-foreground/60">
               Admin da plataforma
             </span>

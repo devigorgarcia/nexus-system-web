@@ -372,7 +372,7 @@ export function PedidosScreen() {
               {["Via Cliente", "Via Loja"].map((copy) => (
                 <div key={copy} className="border-b border-dashed pb-4 last:border-b-0">
                   <p className="mb-1 text-center font-semibold">
-                    Palácio das Velas — {copy}
+                    Nexus — {copy}
                   </p>
                   <p className="mb-2 text-center">
                     {new Date(receipt.paidAt ?? receipt.createdAt).toLocaleString(

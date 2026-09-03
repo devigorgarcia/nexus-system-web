@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 // Recria o layout da tela "Login" do design handoff
-// (design_handoff_palacio_das_velas/README.md §1). Submissão real via NextAuth
+// (design_handoff_nexus/README.md §1). Submissão real via NextAuth
 // contra o AuthModule da API (T2.3) — `authorize()` em src/lib/auth.ts é quem
 // de fato valida a credencial, esta tela só repassa e trata o resultado.
 export default function LoginPage() {
@@ -56,7 +56,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       <div className="hidden w-1/2 flex-col justify-center bg-sidebar px-16 text-sidebar-foreground md:flex">
-        <span className="font-heading text-4xl italic">Palácio das Velas</span>
+        <span className="font-heading text-4xl italic">Nexus</span>
         <p className="mt-4 max-w-sm text-sm text-sidebar-foreground/70">
           Painel administrativo — PDV, estoque e financeiro num só lugar.
         </p>

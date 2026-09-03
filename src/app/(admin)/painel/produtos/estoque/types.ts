@@ -1,4 +1,4 @@
-// Espelha `stockSummary()`/`select` da API (palacio-velas-api/src/products,
+// Espelha `stockSummary()`/`select` da API (nexus-api/src/products,
 // src/stock-movements) — T3.7.
 export interface StockSummary {
   itemsCount: number;

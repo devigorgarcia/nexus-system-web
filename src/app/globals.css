@@ -55,7 +55,7 @@
 }
 
 :root {
-  /* Design tokens — design_handoff_palacio_das_velas/README.md */
+  /* Design tokens — design_handoff_nexus/README.md */
   --background: oklch(0.97 0.008 70);
   --foreground: oklch(0.22 0.01 70);
   --card: oklch(1 0 0);

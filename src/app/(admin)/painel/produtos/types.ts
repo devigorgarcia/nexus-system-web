@@ -1,4 +1,4 @@
-// Espelha o `select`/formato de resposta da API (palacio-velas-api/src/products) —
+// Espelha o `select`/formato de resposta da API (nexus-api/src/products) —
 // T3.3/T3.5. `costPrice` só existe na resposta quando o backend decide incluir
 // (canSeeCost, T3.3) — nesta tela só entra quem tem essa permissão (page.tsx),
 // então na prática sempre vem preenchido aqui.

@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
 // de produto → montar carrinho → "Finalizar venda" (Pedido pendente, estoque
 // intacto) → tela Pedidos → "Cobrar" → escolher forma de pagamento →
 // confirmar → saldo de estoque atualizado na tela sem reload manual.
-const ADMIN_EMAIL = "admin@palaciodasvelas.com.br";
+const ADMIN_EMAIL = "admin@nexus.com.br";
 const ADMIN_PASSWORD = "admin1234";
 
 async function login(page: import("@playwright/test").Page) {

@@ -1,4 +1,4 @@
-// Espelha o `select`/resposta da API (palacio-velas-api/src/finance) — T5.1/T5.3/T5.4/T5.5.
+// Espelha o `select`/resposta da API (nexus-api/src/finance) — T5.1/T5.3/T5.4/T5.5.
 export interface CashRegisterItem {
   id: string;
   status: "ABERTO" | "FECHADO";

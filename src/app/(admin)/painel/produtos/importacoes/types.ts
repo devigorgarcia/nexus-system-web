@@ -1,4 +1,4 @@
-// Espelha `PENDING_SELECT`/resposta da API (palacio-velas-api/src/product-imports) —
+// Espelha `PENDING_SELECT`/resposta da API (nexus-api/src/product-imports) —
 // T3.8/T3.9.
 export interface ImportSummary {
   totalRows: number;

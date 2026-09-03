@@ -1,4 +1,4 @@
-// Espelha o `select`/resposta da API (palacio-velas-api/src/sales) — T4.1/T4.7/T4.8.
+// Espelha o `select`/resposta da API (nexus-api/src/sales) — T4.1/T4.7/T4.8.
 export interface SaleItemView {
   id: string;
   quantity: string;

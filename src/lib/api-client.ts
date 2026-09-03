@@ -1,4 +1,4 @@
-// Cliente fino pra falar direto com a API NestJS (palacio-velas-api) do
+// Cliente fino pra falar direto com a API NestJS (nexus-api) do
 // browser — o cookie de sessão do NextAuth vai junto automaticamente
 // (`credentials: "include"`), porque frontend e API são "same-site" mesmo em
 // portas diferentes em dev (docs/decisions.md, T2.4).

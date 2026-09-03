@@ -1,4 +1,4 @@
-// Espelha o `select` implícito da API (palacio-velas-api/src/categories) — T3.4.
+// Espelha o `select` implícito da API (nexus-api/src/categories) — T3.4.
 export interface CategoryListItem {
   id: string;
   name: string;
