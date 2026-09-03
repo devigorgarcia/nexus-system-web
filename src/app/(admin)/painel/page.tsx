@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getNavSections } from "../nav-sections";
 
 // Home do painel pós-login. Antes disto (T1.3) era só um placeholder provando
 // a proteção de sessão — home "de verdade" (provavelmente redirect pra /pdv,
@@ -17,70 +18,10 @@ import {
 // direto (achado construindo T3.4/T3.5).
 export default async function AdminHomePage() {
   const session = await getServerSession(authOptions);
-  const permissions = session?.user.permissions ?? [];
-  const isBronze = session?.user.plan === "BRONZE";
-  const canManageProducts = isBronze || permissions.includes("gerenciar:produtos");
-  const canManagePromotions = isBronze || permissions.includes("gerenciar:promocoes");
-  const canManageUsers = permissions.includes("gerenciar:usuarios");
-  const canManageRoles = permissions.includes("gerenciar:papeis");
-  const canAccessFinance = isBronze || permissions.includes("acessar:financeiro");
-
-  const sections = [
-    // PDV/Pedidos (Fase 4, constitution.md §1.6 — prioridade nº1) sem gate
-    // de permissão: qualquer funcionário logado opera as duas telas,
-    // Vendedor incluso (nasce sem nenhuma permissão granular).
-    {
-      href: "/painel/pdv",
-      title: "PDV",
-      description: "Montar carrinho e enviar pedido pra fila de pagamento.",
-    },
-    {
-      href: "/painel/pedidos",
-      title: "Pedidos",
-      description: "Cobrar pedidos pendentes e conferir o histórico.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos",
-      title: "Produtos",
-      description: "Cadastro de produtos, preço e estoque.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos/categorias",
-      title: "Categorias",
-      description: "Organize os produtos por categoria.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos/estoque",
-      title: "Estoque",
-      description: "Saldo por produto e histórico de movimentações.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos/subcategorias",
-      title: "Subcategorias",
-      description: "Refine a organização dentro de cada categoria.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos/importacoes",
-      title: "Importação",
-      description: "Planilha de fornecedor e fila de revisão.",
-    },
-    canManagePromotions && {
-      href: "/painel/produtos/promocoes",
-      title: "Promoções",
-      description: "Preço promocional por período ou dia da semana.",
-    },
-    canAccessFinance && {
-      href: "/painel/financeiro",
-      title: "Financeiro",
-      description: "Caixa, demonstrativo e relatórios de vendas.",
-    },
-    (canManageUsers || canManageRoles) &&
-      !isBronze && {
-        href: "/painel/usuarios",
-        title: "Usuários",
-        description: "Funcionários, papéis e permissões.",
-      },
-  ].filter((section): section is Exclude<typeof section, false> => Boolean(section));
+  const sections = getNavSections({
+    permissions: session?.user.permissions ?? [],
+    plan: session?.user.plan ?? "",
+  });
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10">

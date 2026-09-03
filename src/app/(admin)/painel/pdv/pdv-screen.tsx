@@ -83,7 +83,13 @@ export function PdvScreen({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
-  const [showTopProducts, setShowTopProducts] = useState(false);
+  // Grade começa em "Mais vendidos" (em vez de vazia até o usuário digitar):
+  // o design mostra a grade de produtos já preenchida ao abrir o PDV. Uma
+  // grade com o catálogo inteiro por padrão exigiria relaxar o contrato do
+  // /products/search (hoje `q` obrigatório e resultado não paginado, T4.3 —
+  // de propósito, pra nunca despejar o catálogo inteiro de uma vez), então
+  // "mais vendidos" é o proxy mais próximo sem mexer nesse contrato.
+  const [showTopProducts, setShowTopProducts] = useState(true);
   const [topPeriod, setTopPeriod] = useState<"dia" | "semana" | "mes">("dia");
   const [topProducts, setTopProducts] = useState<TopProductItem[]>([]);
 
@@ -227,7 +233,7 @@ export function PdvScreen({
             className="flex-1"
           />
           <Select
-            value={categoryFilter || TODAS_CATEGORIAS}
+            value={categoryFilter || undefined}
             onValueChange={(value) =>
               setCategoryFilter(!value || value === TODAS_CATEGORIAS ? "" : value)
             }
@@ -326,7 +332,7 @@ export function PdvScreen({
         </div>
       </div>
 
-      <div className="sticky top-8 self-start rounded-lg border p-4">
+      <div className="sticky top-8 self-start rounded-xl border border-border bg-card p-5">
         <h2 className="mb-3 font-heading text-lg">Carrinho</h2>
 
         {canSelectVendedor ? (

@@ -156,7 +156,7 @@ export function PedidosScreen() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-heading text-2xl">Pedidos</h1>
         <Select
-          value={statusFilter || TODOS_STATUS}
+          value={statusFilter || undefined}
           onValueChange={(value) =>
             setStatusFilter(!value || value === TODOS_STATUS ? "" : value)
           }
