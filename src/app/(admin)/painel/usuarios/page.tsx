@@ -1,41 +1,37 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth/next";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
-import { authOptions } from "@/lib/auth";
+import { getLiveAccess } from "@/lib/live-access";
+import { hasModule } from "@/lib/modules";
 import { UsuariosScreen } from "./usuarios-screen";
 
 // Gestão de usuários e papéis (T2.5, design handoff §9) — precisa do módulo
-// `usuarios` habilitado (rota /painel-admin) e de pelo menos uma das duas
+// `cadastros` habilitado (rota /painel-admin) e de pelo menos uma das duas
 // permissões que essa tela cobre; cada aba interna ainda decide o que
 // mostrar com a permissão específica dela.
 export default async function UsuariosPage() {
-  const session = await getServerSession(authOptions);
+  const access = await getLiveAccess();
 
-  if (!session) {
+  if (!access) {
     redirect("/login");
   }
 
-  if (!session.user.enabledModules.includes("usuarios")) {
+  if (!hasModule(access.enabledModules, "cadastros")) {
     redirect(
       getDefaultRoute({
-        permissions: session.user.permissions,
-        enabledModules: session.user.enabledModules,
+        permissions: access.permissions,
+        enabledModules: access.enabledModules,
       }) ?? "/painel/pdv",
     );
   }
 
-  const canManageUsers = session.user.permissions.includes(
-    "gerenciar:usuarios",
-  );
-  const canManageRoles = session.user.permissions.includes(
-    "gerenciar:papeis",
-  );
+  const canManageUsers = access.permissions.includes("gerenciar:usuarios");
+  const canManageRoles = access.permissions.includes("gerenciar:papeis");
 
   if (!canManageUsers && !canManageRoles) {
     redirect(
       getDefaultRoute({
-        permissions: session.user.permissions,
-        enabledModules: session.user.enabledModules,
+        permissions: access.permissions,
+        enabledModules: access.enabledModules,
       }) ?? "/painel/pdv",
     );
   }

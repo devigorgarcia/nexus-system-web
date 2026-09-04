@@ -1,20 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { Search, Star, X } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { QuantityInput } from "@/components/quantity-input";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import type { CategoryListItem } from "../produtos/categorias/types";
+import { searchCategories, searchCustomers } from "@/lib/search-options";
+import { parseQuantity, quantityToApi, unitSuffix } from "@/lib/unit-type";
 import type { UserListItem } from "../usuarios/types";
 import type {
   CartLine,
@@ -23,7 +22,6 @@ import type {
   TopProductItem,
 } from "./types";
 
-const TODAS_CATEGORIAS = "__todas__";
 const SEARCH_DEBOUNCE_MS = 350;
 
 interface GridItem {
@@ -72,15 +70,17 @@ interface PdvScreenProps {
   currentUserId: string;
   currentUserName: string;
   canSelectVendedor: boolean;
+  canSelectCustomer: boolean;
 }
 
 export function PdvScreen({
   currentUserId,
   currentUserName,
   canSelectVendedor,
+  canSelectCustomer,
 }: PdvScreenProps) {
-  const [categories, setCategories] = useState<CategoryListItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [categoryFilterLabel, setCategoryFilterLabel] = useState("");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
@@ -97,15 +97,14 @@ export function PdvScreen({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [employees, setEmployees] = useState<UserListItem[]>([]);
   const [selectedVendedorId, setSelectedVendedorId] = useState(currentUserId);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCustomerLabel, setSelectedCustomerLabel] = useState("");
 
   const [finalizing, setFinalizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    void apiFetch<CategoryListItem[]>("/categories?active=true").then(
-      setCategories,
-    );
     if (canSelectVendedor) {
       void apiFetch<UserListItem[]>("/users").then((items) =>
         setEmployees(items.filter((item) => item.active)),
@@ -153,7 +152,10 @@ export function PdvScreen({
         if (step === 0) return prev; // fração exige edição manual da quantidade
         return prev.map((line) =>
           line.productId === item.id
-            ? { ...line, quantity: String(Number(line.quantity) + 1) }
+            ? {
+                ...line,
+                quantity: String((parseQuantity(line.quantity) ?? 0) + 1),
+              }
             : line,
         );
       }
@@ -164,7 +166,7 @@ export function PdvScreen({
           name: item.name,
           imageUrl: item.imageUrl,
           unitType: item.unitType,
-          quantity: "1",
+          quantity: item.unitType === "UNIDADE" ? "1" : "",
           unitPrice: item.effectivePrice,
           onPromotion: item.onPromotion,
         },
@@ -184,23 +186,31 @@ export function PdvScreen({
     setCart((prev) => prev.filter((line) => line.productId !== productId));
   }
 
-  const cartTotal = cart.reduce(
-    (sum, line) => sum + Number(line.quantity || 0) * Number(line.unitPrice),
-    0,
-  );
+  function lineSubtotal(line: CartLine) {
+    const quantity = parseQuantity(line.quantity);
+    if (quantity == null) return 0;
+    return quantity * Number(line.unitPrice);
+  }
+
+  const cartReady = cart.every((line) => parseQuantity(line.quantity) != null);
+  const cartTotal = cart.reduce((sum, line) => sum + lineSubtotal(line), 0);
 
   async function handleFinalize() {
+    if (!cartReady) return;
     setFinalizing(true);
     setError(null);
     try {
       const body: Record<string, unknown> = {
         items: cart.map((line) => ({
           productId: line.productId,
-          quantity: line.quantity,
+          quantity: quantityToApi(line.quantity),
         })),
       };
       if (canSelectVendedor && selectedVendedorId !== currentUserId) {
         body.vendedorId = selectedVendedorId;
+      }
+      if (canSelectCustomer && selectedCustomerId) {
+        body.customerId = selectedCustomerId;
       }
       await apiFetch<CreatedSale>("/sales", {
         method: "POST",
@@ -219,69 +229,76 @@ export function PdvScreen({
   }
 
   return (
-    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 py-8 lg:grid-cols-[1.6fr_1fr]">
+    <div>
+      <PageHeader
+        title="PDV"
+        description="Monta o pedido no balcão. A cobrança acontece na fila de Pedidos."
+      />
+
+      <PageBody className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
       <div>
-        <h1 className="mb-4 font-heading text-2xl">PDV</h1>
-
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-          <Input
-            placeholder="Buscar produto pelo nome..."
-            value={query}
-            onChange={(e) => {
-              setShowTopProducts(false);
-              setQuery(e.target.value);
-            }}
-            className="flex-1"
-          />
-          <Select
-            value={categoryFilter || undefined}
-            onValueChange={(value) =>
-              setCategoryFilter(!value || value === TODAS_CATEGORIAS ? "" : value)
-            }
-          >
-            <SelectTrigger className="w-full sm:w-48" aria-label="Filtrar por categoria">
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODAS_CATEGORIAS}>Todas categorias</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant={showTopProducts ? "default" : "outline"}
-            onClick={() => {
-              setQuery("");
-              setShowTopProducts((prev) => !prev);
-            }}
-          >
-            ★ Mais vendidos
-          </Button>
-        </div>
-
-        {showTopProducts && (
-          <div className="mb-4 flex gap-2">
-            {(["dia", "semana", "mes"] as const).map((period) => (
-              <Button
-                key={period}
-                type="button"
-                size="sm"
-                variant={topPeriod === period ? "default" : "outline"}
-                onClick={() => setTopPeriod(period)}
-              >
-                {period === "dia" ? "Hoje" : period === "semana" ? "Semana" : "Mês"}
-              </Button>
-            ))}
+        <PageToolbar className="flex-col items-stretch sm:flex-col">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto pelo nome..."
+                value={query}
+                onChange={(e) => {
+                  setShowTopProducts(false);
+                  setQuery(e.target.value);
+                }}
+                className="h-11 pl-9"
+              />
+            </div>
+            <SearchableSelect
+              className="h-11 w-full sm:w-44"
+              aria-label="Filtrar por categoria"
+              value={categoryFilter}
+              valueLabel={categoryFilterLabel}
+              fetchOptions={searchCategories}
+              placeholder="Todas categorias"
+              emptyOption={{ value: "", label: "Todas categorias" }}
+              onChange={(value, option) => {
+                setCategoryFilter(value);
+                setCategoryFilterLabel(value ? (option?.label ?? "") : "");
+              }}
+            />
+            <Button
+              type="button"
+              variant={showTopProducts ? "default" : "outline"}
+              className="h-11"
+              onClick={() => {
+                setQuery("");
+                setShowTopProducts((prev) => !prev);
+              }}
+            >
+              <Star className="size-3.5" />
+              Mais vendidos
+            </Button>
           </div>
-        )}
+
+          {showTopProducts && (
+            <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
+              {(["dia", "semana", "mes"] as const).map((period) => (
+                <Button
+                  key={period}
+                  type="button"
+                  size="sm"
+                  variant={topPeriod === period ? "default" : "ghost"}
+                  className="flex-1"
+                  onClick={() => setTopPeriod(period)}
+                >
+                  {period === "dia" ? "Hoje" : period === "semana" ? "Semana" : "Mês"}
+                </Button>
+              ))}
+            </div>
+          )}
+        </PageToolbar>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {gridItems.length === 0 && (
-            <p className="col-span-full text-sm text-muted-foreground">
+            <p className="col-span-full rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
               {showTopProducts
                 ? "Nenhuma venda paga no período."
                 : "Digite pra buscar um produto."}
@@ -290,42 +307,47 @@ export function PdvScreen({
           {gridItems.map((item) => (
             <Card
               key={item.id}
-              className="cursor-pointer transition-colors hover:border-primary"
+              size="sm"
+              className="cursor-pointer gap-0 py-0 transition-colors hover:border-primary"
               onClick={() => addToCart(item)}
             >
-              <CardContent className="flex flex-col gap-1 p-3">
-                <div className="flex h-16 items-center justify-center rounded bg-muted text-xs text-muted-foreground">
+              <CardContent className="flex flex-col gap-2 p-0">
+                <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-muted text-xs text-muted-foreground">
                   {item.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.imageUrl}
                       alt={item.name}
-                      className="h-full w-full rounded object-cover"
+                      className="h-full w-full object-cover"
                     />
                   ) : (
                     "sem foto"
                   )}
                 </div>
-                <p className="text-sm font-medium">{item.name}</p>
-                <div className="flex items-center gap-2">
-                  {item.onPromotion && (
-                    <span className="text-xs text-muted-foreground line-through">
-                      {formatCurrency(Number(item.regularPrice))}
-                    </span>
-                  )}
-                  <span className="text-sm font-semibold">
-                    {formatCurrency(Number(item.effectivePrice))}
-                    {item.unitType !== "UNIDADE" && (
-                      <span className="text-xs font-normal text-muted-foreground">
-                        /{item.unitType.toLowerCase()}
+                <div className="flex flex-col gap-1 px-3 pb-3">
+                  <p className="line-clamp-2 text-sm font-medium leading-snug">
+                    {item.name}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {item.onPromotion && (
+                      <span className="text-xs text-muted-foreground line-through">
+                        {formatCurrency(Number(item.regularPrice))}
                       </span>
                     )}
-                  </span>
-                  {item.onPromotion && (
-                    <Badge className="bg-success text-success-foreground">
-                      promo
-                    </Badge>
-                  )}
+                    <span className="text-sm font-semibold text-primary">
+                      {formatCurrency(Number(item.effectivePrice))}
+                      {item.unitType !== "UNIDADE" && (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          /{unitSuffix(item.unitType)}
+                        </span>
+                      )}
+                    </span>
+                    {item.onPromotion && (
+                      <Badge className="bg-success text-success-foreground">
+                        promo
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -333,7 +355,7 @@ export function PdvScreen({
         </div>
       </div>
 
-      <div className="sticky top-8 self-start rounded-xl border border-border bg-card p-5">
+      <div className="sticky top-3 self-start rounded-xl border border-border border-l-[3px] border-l-primary bg-card p-5 lg:top-[5.75rem]">
         <h2 className="mb-3 font-heading text-lg">Carrinho</h2>
 
         {canSelectVendedor ? (
@@ -368,6 +390,23 @@ export function PdvScreen({
           </p>
         )}
 
+        {canSelectCustomer && (
+          <div className="mb-3">
+            <SearchableSelect
+              aria-label="Cliente"
+              value={selectedCustomerId}
+              valueLabel={selectedCustomerLabel}
+              fetchOptions={searchCustomers}
+              placeholder="Cliente avulso"
+              emptyOption={{ value: "", label: "Cliente avulso" }}
+              onChange={(value, option) => {
+                setSelectedCustomerId(value);
+                setSelectedCustomerLabel(value ? (option?.label ?? "") : "");
+              }}
+            />
+          </div>
+        )}
+
         {cart.length === 0 ? (
           <p className="text-sm text-muted-foreground">Carrinho vazio.</p>
         ) : (
@@ -378,19 +417,23 @@ export function PdvScreen({
                   <p className="text-sm font-medium">{line.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {formatCurrency(Number(line.unitPrice))}
-                    {line.unitType !== "UNIDADE" && `/${line.unitType.toLowerCase()}`}
+                    {line.unitType !== "UNIDADE" &&
+                      `/${unitSuffix(line.unitType)}`}
                   </p>
                 </div>
-                <Input
-                  className="w-20"
+                <QuantityInput
+                  className="w-24"
+                  unitType={line.unitType}
                   value={line.quantity}
-                  onChange={(e) => updateQuantity(line.productId, e.target.value)}
+                  onChange={(quantity) =>
+                    updateQuantity(line.productId, quantity)
+                  }
                   aria-label={`Quantidade de ${line.name}`}
                 />
                 <span className="w-20 text-right text-sm">
-                  {formatCurrency(
-                    Number(line.quantity || 0) * Number(line.unitPrice),
-                  )}
+                  {parseQuantity(line.quantity) == null
+                    ? "—"
+                    : formatCurrency(lineSubtotal(line))}
                 </span>
                 <Button
                   type="button"
@@ -420,12 +463,13 @@ export function PdvScreen({
         <Button
           type="button"
           className="mt-4 w-full"
-          disabled={cart.length === 0 || finalizing}
+          disabled={cart.length === 0 || !cartReady || finalizing}
           onClick={handleFinalize}
         >
           {finalizing ? "Finalizando..." : "Finalizar venda"}
         </Button>
       </div>
+      </PageBody>
     </div>
   );
 }

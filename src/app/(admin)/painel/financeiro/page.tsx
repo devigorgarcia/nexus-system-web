@@ -1,28 +1,27 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth/next";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
-import { authOptions } from "@/lib/auth";
+import { getLiveAccess } from "@/lib/live-access";
 import { FinanceiroScreen } from "./financeiro-screen";
 
-// Financeiro (T5.2) — só quem tem `acessar:financeiro` (Admin/Dono ou
-// Financeiro, permission-catalog.ts) numa empresa com o módulo `financeiro`
-// habilitado (rota /painel-admin, docs/decisions.md 2026-09-03).
+// Caixa (abertura/fechamento) agora vive no módulo `vendas` — é operação
+// do dia de venda, não de contas a pagar/receber. A permissão continua
+// `acessar:financeiro` (papel Financeiro / Admin).
 export default async function FinanceiroPage() {
-  const session = await getServerSession(authOptions);
+  const access = await getLiveAccess();
 
-  if (!session) {
+  if (!access) {
     redirect("/login");
   }
 
-  const canAccessFinance =
-    session.user.enabledModules.includes("financeiro") &&
-    session.user.permissions.includes("acessar:financeiro");
+  const canAccessCaixa =
+    access.enabledModules.includes("vendas") &&
+    access.permissions.includes("acessar:financeiro");
 
-  if (!canAccessFinance) {
+  if (!canAccessCaixa) {
     redirect(
       getDefaultRoute({
-        permissions: session.user.permissions,
-        enabledModules: session.user.enabledModules,
+        permissions: access.permissions,
+        enabledModules: access.enabledModules,
       }) ?? "/painel/pdv",
     );
   }

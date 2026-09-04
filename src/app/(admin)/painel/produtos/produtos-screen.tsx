@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Ban, Pencil } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Ban, ImagePlus, Pencil, Plus, Search } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { QuickCreateDialog } from "@/components/quick-create-dialog";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
+import { MoneyInput } from "@/components/money-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,8 +35,18 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch, apiUpload, ApiError } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
+import { searchCategories, searchSubcategories } from "@/lib/search-options";
+import {
+  UNIT_TYPE_LABELS,
+  formatQuantity,
+  priceFieldLabels,
+  unitSuffix,
+  type ProductUnitType,
+} from "@/lib/unit-type";
 import type { CategoryListItem } from "./categorias/types";
 import type { SubcategoryListItem } from "./subcategorias/types";
+import { useHasModule } from "@/lib/modules-context";
 import type { ProductListItem, ProductsPage } from "./types";
 
 const PAGE_SIZE = 10;
@@ -43,10 +59,12 @@ interface ProductFormState {
   costPrice: string;
   salePrice: string;
   categoryId: string;
+  categoryName: string;
   subcategoryId: string;
+  subcategoryName: string;
   minStock: string;
   storageInstructions: string;
-  unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
+  unitType: ProductUnitType;
   pricePerUnit: string;
 }
 
@@ -57,33 +75,24 @@ const EMPTY_FORM: ProductFormState = {
   costPrice: "",
   salePrice: "",
   categoryId: "",
+  categoryName: "",
   subcategoryId: "",
+  subcategoryName: "",
   minStock: "",
   storageInstructions: "",
   unitType: "UNIDADE",
   pricePerUnit: "",
 };
 
-const UNIT_TYPE_LABELS: Record<ProductFormState["unitType"], string> = {
-  UNIDADE: "Unidade",
-  METRO: "Metro",
-  PESO: "Peso",
-  VOLUME: "Volume",
-};
-
-const NO_CATEGORY = "__sem_categoria__";
-const NO_SUBCATEGORY = "__sem_subcategoria__";
-
 export function ProdutosScreen() {
+  const hasEstoque = useHasModule("estoque");
   const [productsPage, setProductsPage] = useState<ProductsPage | null>(null);
-  const [categories, setCategories] = useState<CategoryListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [subcategories, setSubcategories] = useState<SubcategoryListItem[]>(
-    [],
-  );
+  const [categoryFilterLabel, setCategoryFilterLabel] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState<string>("");
+  const [subcategoryFilterLabel, setSubcategoryFilterLabel] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
 
@@ -92,24 +101,27 @@ export function ProdutosScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [formSubcategories, setFormSubcategories] = useState<
-    SubcategoryListItem[]
-  >([]);
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
+  const [createSubcategoryOpen, setCreateSubcategoryOpen] = useState(false);
 
-  useEffect(() => {
-    if (!sheetOpen || !form.categoryId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setFormSubcategories([]);
-      return;
-    }
-    void apiFetch<SubcategoryListItem[]>(
-      `/subcategories?categoryId=${form.categoryId}&active=true`,
-    ).then(setFormSubcategories);
-  }, [sheetOpen, form.categoryId]);
+  const fetchCategories = useCallback(
+    (query: string) => searchCategories(query),
+    [],
+  );
+  const fetchFormSubcategories = useCallback(
+    (query: string) =>
+      form.categoryId ? searchSubcategories(query, form.categoryId) : Promise.resolve([]),
+    [form.categoryId],
+  );
+  const fetchFilterSubcategories = useCallback(
+    (query: string) =>
+      categoryFilter
+        ? searchSubcategories(query, categoryFilter)
+        : Promise.resolve([]),
+    [categoryFilter],
+  );
 
-  async function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  async function uploadProductImage(file?: File) {
     if (!file) return;
 
     setUploadingImage(true);
@@ -133,6 +145,12 @@ export function ProdutosScreen() {
     }
   }
 
+  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    void uploadProductImage(file);
+  }
+
   async function reload() {
     setLoading(true);
     const params = new URLSearchParams({
@@ -143,12 +161,10 @@ export function ProdutosScreen() {
     if (subcategoryFilter) params.set("subcategoryId", subcategoryFilter);
     if (search) params.set("search", search);
 
-    const [productsData, categoriesData] = await Promise.all([
-      apiFetch<ProductsPage>(`/products?${params.toString()}`),
-      apiFetch<CategoryListItem[]>("/categories?active=true"),
-    ]);
+    const productsData = await apiFetch<ProductsPage>(
+      `/products?${params.toString()}`,
+    );
     setProductsPage(productsData);
-    setCategories(categoriesData);
     setLoading(false);
   }
 
@@ -160,22 +176,6 @@ export function ProdutosScreen() {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, categoryFilter, subcategoryFilter, search]);
-
-  useEffect(() => {
-    // Subcategoria depende da categoria escolhida (T3.18, mesmo padrão do
-    // cadastro de produto) — sem categoria selecionada, filtro de
-    // subcategoria some.
-    if (!categoryFilter) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSubcategories([]);
-      setSubcategoryFilter("");
-      return;
-    }
-    void apiFetch<SubcategoryListItem[]>(
-      `/subcategories?categoryId=${categoryFilter}&active=true`,
-    ).then(setSubcategories);
-    setSubcategoryFilter("");
-  }, [categoryFilter]);
 
   function openCreateSheet() {
     setForm(EMPTY_FORM);
@@ -190,9 +190,14 @@ export function ProdutosScreen() {
       description: product.description ?? "",
       imageUrl: product.imageUrl ?? "",
       costPrice: product.costPrice ?? "",
-      salePrice: product.salePrice,
+      salePrice:
+        product.unitType === "UNIDADE"
+          ? product.salePrice
+          : (product.pricePerUnit ?? product.salePrice),
       categoryId: product.categoryId ?? "",
+      categoryName: product.category?.name ?? "",
       subcategoryId: product.subcategoryId ?? "",
+      subcategoryName: product.subcategory?.name ?? "",
       minStock: String(product.minStock),
       storageInstructions: product.storageInstructions ?? "",
       unitType: product.unitType,
@@ -214,11 +219,13 @@ export function ProdutosScreen() {
         salePrice: form.salePrice,
         categoryId: form.categoryId || undefined,
         subcategoryId: form.subcategoryId || undefined,
-        minStock: form.minStock ? Number(form.minStock) : undefined,
+        ...(hasEstoque && form.minStock
+          ? { minStock: Number(form.minStock) }
+          : {}),
         storageInstructions: form.storageInstructions || undefined,
         unitType: form.unitType,
         pricePerUnit:
-          form.unitType === "UNIDADE" ? undefined : form.pricePerUnit,
+          form.unitType === "UNIDADE" ? undefined : form.salePrice,
       };
 
       if (form.id) {
@@ -270,84 +277,110 @@ export function ProdutosScreen() {
     setSearch(searchInput.trim());
   }
 
+  async function handleCreateCategory(name: string) {
+    const created = await apiFetch<CategoryListItem>("/categories", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+    setForm((prev) => ({
+      ...prev,
+      categoryId: created.id,
+      categoryName: created.name,
+      subcategoryId: "",
+      subcategoryName: "",
+    }));
+  }
+
+  async function handleCreateSubcategory(name: string) {
+    if (!form.categoryId) return;
+    const created = await apiFetch<SubcategoryListItem>("/subcategories", {
+      method: "POST",
+      body: JSON.stringify({ categoryId: form.categoryId, name }),
+    });
+    setForm((prev) => ({
+      ...prev,
+      subcategoryId: created.id,
+      subcategoryName: created.name,
+    }));
+  }
+
   const totalPages = productsPage
     ? Math.max(1, Math.ceil(productsPage.total / productsPage.pageSize))
     : 1;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl">Produtos</h1>
-        <Button onClick={openCreateSheet}>+ Novo produto</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Produtos"
+        description={
+          hasEstoque
+            ? "Cadastro, preço e estoque do que a loja vende."
+            : "Cadastro e preço do que a loja vende."
+        }
+        actions={
+          <Button onClick={openCreateSheet}>
+            <Plus className="size-3.5" />
+            Novo produto
+          </Button>
+        }
+      />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-          <Input
-            placeholder="Buscar por nome…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-56"
-          />
+      <PageBody>
+      <PageToolbar>
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex w-full min-w-0 items-center gap-2 sm:w-auto"
+        >
+          <div className="relative min-w-0 flex-1 sm:flex-none">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-9 sm:w-56"
+            />
+          </div>
           <Button type="submit" variant="secondary" size="sm">
             Buscar
           </Button>
         </form>
 
-        <Select
-          value={categoryFilter || undefined}
-          onValueChange={(value) => {
+        <SearchableSelect
+          size="sm"
+          className="w-full sm:w-48"
+          aria-label="Filtrar por categoria"
+          value={categoryFilter}
+          valueLabel={categoryFilterLabel}
+          fetchOptions={fetchCategories}
+          placeholder="Todas as categorias"
+          emptyOption={{ value: "", label: "Todas as categorias" }}
+          onChange={(value, option) => {
             setPage(1);
-            setCategoryFilter(value === "__todas__" ? "" : (value ?? ""));
+            setCategoryFilter(value);
+            setCategoryFilterLabel(value ? (option?.label ?? "") : "");
+            setSubcategoryFilter("");
+            setSubcategoryFilterLabel("");
           }}
-        >
-          <SelectTrigger
-            size="sm"
-            className="w-48"
-            aria-label="Filtrar por categoria"
-          >
-            <SelectValue placeholder="Todas as categorias" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__todas__">Todas as categorias</SelectItem>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
 
-        {categoryFilter && subcategories.length > 0 && (
-          <Select
-            value={subcategoryFilter || undefined}
-            onValueChange={(value) => {
+        {categoryFilter && (
+          <SearchableSelect
+            size="sm"
+            className="w-full sm:w-48"
+            aria-label="Filtrar por subcategoria"
+            value={subcategoryFilter}
+            valueLabel={subcategoryFilterLabel}
+            fetchOptions={fetchFilterSubcategories}
+            placeholder="Todas as subcategorias"
+            emptyOption={{ value: "", label: "Todas as subcategorias" }}
+            onChange={(value, option) => {
               setPage(1);
-              setSubcategoryFilter(
-                value === "__todas_sub__" ? "" : (value ?? ""),
-              );
+              setSubcategoryFilter(value);
+              setSubcategoryFilterLabel(value ? (option?.label ?? "") : "");
             }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-48"
-              aria-label="Filtrar por subcategoria"
-            >
-              <SelectValue placeholder="Todas as subcategorias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__todas_sub__">
-                Todas as subcategorias
-              </SelectItem>
-              {subcategories.map((subcategory) => (
-                <SelectItem key={subcategory.id} value={subcategory.id}>
-                  {subcategory.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         )}
-      </div>
+      </PageToolbar>
 
       <Table>
         <TableHeader>
@@ -356,7 +389,7 @@ export function ProdutosScreen() {
             <TableHead>Categoria</TableHead>
             <TableHead>Custo</TableHead>
             <TableHead>Venda</TableHead>
-            <TableHead>Estoque</TableHead>
+            {hasEstoque ? <TableHead>Estoque</TableHead> : null}
             <TableHead className="text-right">Ação</TableHead>
           </TableRow>
         </TableHeader>
@@ -364,7 +397,7 @@ export function ProdutosScreen() {
           {!loading && productsPage?.items.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={hasEstoque ? 6 : 5}
                 className="text-center text-muted-foreground"
               >
                 Nenhum produto encontrado.
@@ -373,13 +406,33 @@ export function ProdutosScreen() {
           )}
           {productsPage?.items.map((product) => (
             <TableRow key={product.id}>
-              <TableCell>{product.name}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-[10px] text-muted-foreground">
+                    {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.imageUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <span className="font-medium">{product.name}</span>
+                </div>
+              </TableCell>
               <TableCell>{product.category?.name ?? "Sem categoria"}</TableCell>
               <TableCell>
                 {product.costPrice ? `R$ ${product.costPrice}` : "—"}
               </TableCell>
               <TableCell>R$ {product.salePrice}</TableCell>
-              <TableCell>{product.stock}</TableCell>
+              {hasEstoque ? (
+                <TableCell>
+                  {formatQuantity(product.stock, product.unitType)}
+                </TableCell>
+              ) : null}
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   <Button
@@ -464,33 +517,59 @@ export function ProdutosScreen() {
               />
             </div>
 
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="product-unit-type">Unidade de venda</Label>
+              <Select
+                value={form.unitType}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    unitType:
+                      (value as ProductFormState["unitType"]) ?? "UNIDADE",
+                    pricePerUnit:
+                      value === "UNIDADE" ? "" : prev.salePrice,
+                  }))
+                }
+              >
+                <SelectTrigger id="product-unit-type" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(UNIT_TYPE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex gap-3">
               <div className="flex flex-1 flex-col gap-1.5">
-                <Label htmlFor="product-cost">Custo (R$)</Label>
-                <Input
+                <Label htmlFor="product-cost">
+                  {priceFieldLabels(form.unitType).cost}
+                </Label>
+                <MoneyInput
                   id="product-cost"
-                  inputMode="decimal"
-                  placeholder="0.00"
                   value={form.costPrice}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      costPrice: e.target.value,
-                    }))
+                  onChange={(costPrice) =>
+                    setForm((prev) => ({ ...prev, costPrice }))
                   }
                 />
               </div>
               <div className="flex flex-1 flex-col gap-1.5">
-                <Label htmlFor="product-sale">Venda (R$)</Label>
-                <Input
+                <Label htmlFor="product-sale">
+                  {priceFieldLabels(form.unitType).sale}
+                </Label>
+                <MoneyInput
                   id="product-sale"
-                  inputMode="decimal"
-                  placeholder="0.00"
                   value={form.salePrice}
-                  onChange={(e) =>
+                  onChange={(salePrice) =>
                     setForm((prev) => ({
                       ...prev,
-                      salePrice: e.target.value,
+                      salePrice,
+                      pricePerUnit:
+                        prev.unitType === "UNIDADE" ? "" : salePrice,
                     }))
                   }
                 />
@@ -499,66 +578,59 @@ export function ProdutosScreen() {
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-category">Categoria</Label>
-              <Select
-                value={form.categoryId || NO_CATEGORY}
-                onValueChange={(value) =>
+              <SearchableSelect
+                id="product-category"
+                value={form.categoryId}
+                valueLabel={form.categoryName}
+                fetchOptions={fetchCategories}
+                placeholder="Sem categoria"
+                emptyOption={{ value: "", label: "Sem categoria" }}
+                createLabel="Criar categoria"
+                onCreate={() => setCreateCategoryOpen(true)}
+                onChange={(value, option) =>
                   setForm((prev) => ({
                     ...prev,
-                    categoryId: value === NO_CATEGORY ? "" : (value ?? ""),
-                    // Subcategoria depende da categoria (T3.18) — trocar de
-                    // categoria invalida a subcategoria escolhida antes.
+                    categoryId: value,
+                    categoryName: value ? (option?.label ?? "") : "",
                     subcategoryId: "",
+                    subcategoryName: "",
                   }))
                 }
-              >
-                <SelectTrigger id="product-category" className="w-full">
-                  <SelectValue placeholder="Sem categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_CATEGORY}>Sem categoria</SelectItem>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
-            {form.categoryId && formSubcategories.length > 0 && (
+            {form.categoryId && (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="product-subcategory">
                   Subcategoria (opcional)
                 </Label>
-                <Select
-                  value={form.subcategoryId || NO_SUBCATEGORY}
-                  onValueChange={(value) =>
+                <SearchableSelect
+                  id="product-subcategory"
+                  value={form.subcategoryId}
+                  valueLabel={form.subcategoryName}
+                  fetchOptions={fetchFormSubcategories}
+                  placeholder="Sem subcategoria"
+                  emptyOption={{ value: "", label: "Sem subcategoria" }}
+                  createLabel="Criar subcategoria"
+                  onCreate={() => setCreateSubcategoryOpen(true)}
+                  onChange={(value, option) =>
                     setForm((prev) => ({
                       ...prev,
-                      subcategoryId:
-                        value === NO_SUBCATEGORY ? "" : (value ?? ""),
+                      subcategoryId: value,
+                      subcategoryName: value ? (option?.label ?? "") : "",
                     }))
                   }
-                >
-                  <SelectTrigger id="product-subcategory" className="w-full">
-                    <SelectValue placeholder="Sem subcategoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_SUBCATEGORY}>
-                      Sem subcategoria
-                    </SelectItem>
-                    {formSubcategories.map((subcategory) => (
-                      <SelectItem key={subcategory.id} value={subcategory.id}>
-                        {subcategory.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
             )}
 
+            {hasEstoque ? (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-min-stock">Estoque mínimo</Label>
+              <Label htmlFor="product-min-stock">
+                {unitSuffix(form.unitType)
+                  ? `Estoque mínimo (${unitSuffix(form.unitType)})`
+                  : "Estoque mínimo"}
+              </Label>
               <Input
                 id="product-min-stock"
                 type="number"
@@ -570,6 +642,7 @@ export function ProdutosScreen() {
                 }
               />
             </div>
+            ) : null}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-storage">
@@ -588,78 +661,55 @@ export function ProdutosScreen() {
               />
             </div>
 
-            <div className="flex gap-3">
-              <div className="flex flex-1 flex-col gap-1.5">
-                <Label htmlFor="product-unit-type">Unidade de venda</Label>
-                <Select
-                  value={form.unitType}
-                  onValueChange={(value) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      unitType:
-                        (value as ProductFormState["unitType"]) ?? "UNIDADE",
-                      // Voltar pra unidade limpa o preço por unidade — não
-                      // faz sentido continuar preenchido escondido.
-                      pricePerUnit:
-                        value === "UNIDADE" ? "" : prev.pricePerUnit,
-                    }))
-                  }
-                >
-                  <SelectTrigger id="product-unit-type" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(UNIT_TYPE_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {form.unitType !== "UNIDADE" && (
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Label htmlFor="product-price-per-unit">
-                    Preço por {UNIT_TYPE_LABELS[form.unitType].toLowerCase()}{" "}
-                    (R$)
-                  </Label>
-                  <Input
-                    id="product-price-per-unit"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={form.pricePerUnit}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        pricePerUnit: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              )}
-            </div>
-
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-image">Imagem (opcional)</Label>
-              {form.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element -- URL vem da própria API (T3.13), sem otimização do Next necessária aqui.
-                <img
-                  src={form.imageUrl}
-                  alt=""
-                  className="h-24 w-24 rounded-md border border-border object-cover"
+              <label
+                htmlFor="product-image"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (uploadingImage) return;
+                  void uploadProductImage(event.dataTransfer.files[0]);
+                }}
+                className={cn(
+                  "relative flex min-h-36 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-primary/45 bg-accent/50 px-4 py-5 text-center transition-colors hover:border-primary hover:bg-accent",
+                  uploadingImage && "pointer-events-none opacity-70",
+                )}
+              >
+                {form.imageUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- URL vem da própria API (T3.13). */}
+                    <img
+                      src={form.imageUrl}
+                      alt=""
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                    <span className="relative z-10 rounded-md bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm">
+                      Clique para trocar a imagem
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="mb-2 size-8 text-primary" />
+                    <span className="text-sm font-semibold">
+                      {uploadingImage
+                        ? "Enviando imagem…"
+                        : "Clique para adicionar imagem"}
+                    </span>
+                    <span className="mt-1 text-xs text-muted-foreground">
+                      Ou arraste o arquivo aqui · PNG, JPG ou WebP
+                    </span>
+                  </>
+                )}
+                <input
+                  id="product-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleImageChange}
+                  disabled={uploadingImage}
+                  className="sr-only"
                 />
-              )}
-              <input
-                id="product-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onChange={(e) => void handleImageChange(e)}
-                disabled={uploadingImage}
-                className="text-sm"
-              />
-              {uploadingImage && (
-                <p className="text-sm text-muted-foreground">Enviando…</p>
-              )}
+              </label>
             </div>
 
             {formError && (
@@ -677,8 +727,7 @@ export function ProdutosScreen() {
                 uploadingImage ||
                 !form.name ||
                 !form.costPrice ||
-                !form.salePrice ||
-                (form.unitType !== "UNIDADE" && !form.pricePerUnit)
+                !form.salePrice
               }
             >
               Salvar
@@ -686,6 +735,26 @@ export function ProdutosScreen() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <QuickCreateDialog
+        open={createCategoryOpen}
+        onOpenChange={setCreateCategoryOpen}
+        title="Nova categoria"
+        placeholder="Ex.: Velas aromáticas"
+        onSubmit={handleCreateCategory}
+      />
+      <QuickCreateDialog
+        open={createSubcategoryOpen}
+        onOpenChange={setCreateSubcategoryOpen}
+        title={
+          form.categoryName
+            ? `Nova subcategoria em ${form.categoryName}`
+            : "Nova subcategoria"
+        }
+        placeholder="Ex.: Floral"
+        onSubmit={handleCreateSubcategory}
+      />
+      </PageBody>
     </div>
   );
 }

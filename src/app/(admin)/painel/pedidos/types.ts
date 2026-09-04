@@ -22,6 +22,8 @@ export interface SaleItemRecord {
   createdAt: string;
   vendedorId: string;
   vendedor: { id: string; name: string };
+  customerId: string | null;
+  customer: { id: string; name: string } | null;
   items: SaleItemView[];
 }
 

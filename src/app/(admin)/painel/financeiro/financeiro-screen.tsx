@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MoneyInput } from "@/components/money-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { useHasModule } from "@/lib/modules-context";
 import type {
   CashRegisterItem,
   CashRegistersPage,
@@ -54,6 +59,7 @@ function monthAgoIso() {
 }
 
 export function FinanceiroScreen() {
+  const hasFinanceiro = useHasModule("financeiro");
   const [tab, setTab] = useState("caixa");
 
   // --- Caixa (T5.1/T5.2) ---
@@ -155,15 +161,27 @@ export function FinanceiroScreen() {
   }, [tab, reportFrom, reportTo]);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <h1 className="mb-6 font-heading text-2xl">Financeiro</h1>
+    <div>
+      <PageHeader
+        title="Caixa"
+        description={
+          hasFinanceiro
+            ? "Caixa do dia, demonstrativo e relatórios de vendas."
+            : "Abertura, fechamento e movimento do caixa do dia."
+        }
+      />
 
+      <PageBody>
       <Tabs value={tab} onValueChange={(value) => setTab(value as string)}>
-        <TabsList>
-          <TabsTrigger value="caixa">Caixa</TabsTrigger>
-          <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
-          <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-        </TabsList>
+        {hasFinanceiro ? (
+        <PageToolbar>
+          <TabsList className="h-auto w-full flex-wrap justify-start sm:w-fit">
+            <TabsTrigger value="caixa">Caixa</TabsTrigger>
+            <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
+            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+          </TabsList>
+        </PageToolbar>
+        ) : null}
 
         <TabsContent value="caixa" className="mt-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -249,7 +267,7 @@ export function FinanceiroScreen() {
         </TabsContent>
 
         <TabsContent value="demonstrativo" className="mt-4">
-          <div className="mb-4 flex gap-3">
+          <PageToolbar>
             <div>
               <Label htmlFor="dre-from" className="text-sm">
                 De
@@ -272,7 +290,7 @@ export function FinanceiroScreen() {
                 onChange={(e) => setDreTo(e.target.value)}
               />
             </div>
-          </div>
+          </PageToolbar>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
@@ -306,7 +324,7 @@ export function FinanceiroScreen() {
         </TabsContent>
 
         <TabsContent value="relatorios" className="mt-4">
-          <div className="mb-4 flex gap-3">
+          <PageToolbar>
             <div>
               <Label htmlFor="report-from" className="text-sm">
                 De
@@ -329,7 +347,7 @@ export function FinanceiroScreen() {
                 onChange={(e) => setReportTo(e.target.value)}
               />
             </div>
-          </div>
+          </PageToolbar>
 
           <h2 className="mb-3 font-heading text-lg">Vendas por produto</h2>
           <Table>
@@ -384,11 +402,11 @@ export function FinanceiroScreen() {
             <DialogTitle>Abrir caixa</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-1.5 px-4">
-            <Label htmlFor="opening-amount">Valor de abertura (R$)</Label>
-            <Input
+            <Label htmlFor="opening-amount">Valor de abertura</Label>
+            <MoneyInput
               id="opening-amount"
               value={openingAmount}
-              onChange={(e) => setOpeningAmount(e.target.value)}
+              onChange={setOpeningAmount}
             />
           </div>
           {cashError && (
@@ -411,11 +429,11 @@ export function FinanceiroScreen() {
             <DialogTitle>Fechar caixa</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-1.5 px-4">
-            <Label htmlFor="closing-amount">Valor contado na gaveta (R$)</Label>
-            <Input
+            <Label htmlFor="closing-amount">Valor contado na gaveta</Label>
+            <MoneyInput
               id="closing-amount"
               value={closingAmount}
-              onChange={(e) => setClosingAmount(e.target.value)}
+              onChange={setClosingAmount}
             />
           </div>
           {cashError && (
@@ -431,6 +449,7 @@ export function FinanceiroScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </PageBody>
     </div>
   );
 }

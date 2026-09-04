@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -114,12 +116,19 @@ export function CategoriasScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl">Categorias</h1>
-        <Button onClick={openCreateDialog}>+ Nova categoria</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Categorias"
+        description="Organize os produtos por categoria."
+        actions={
+          <Button onClick={openCreateDialog}>
+            <Plus className="size-3.5" />
+            Nova categoria
+          </Button>
+        }
+      />
 
+      <PageBody>
       <Table>
         <TableHeader>
           <TableRow>
@@ -199,6 +208,7 @@ export function CategoriasScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </PageBody>
     </div>
   );
 }

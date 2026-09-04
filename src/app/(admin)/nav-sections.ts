@@ -1,13 +1,35 @@
+import { hasModule } from "@/lib/modules";
+
 export type NavSection = {
   href: string;
   title: string;
   description: string;
-  // Item de topo na sidebar persistente (design Hi-Fi: PDV, Produtos, Estoque,
-  // Promoções, Pedidos, Financeiro, Usuários — 7 itens fixos). Telas mais
-  // finas (Categorias/Subcategorias/Importação) ficam de fora da sidebar,
-  // acessíveis só por link direto dentro da própria tela de Produtos.
+  // Item de topo na sidebar persistente. Cada tela do módulo habilitado
+  // entra no menu, agrupada pelo `group`.
   sidebar?: boolean;
+  // Rótulo estático da área (Vendas, Produtos, Financeiro, Cadastros) —
+  // a sidebar agrupa itens com o mesmo `group`. Sem accordion.
+  group?: string;
 };
+
+export type NavGroup = {
+  label: string;
+  items: NavSection[];
+};
+
+export function groupNavSections(items: NavSection[]): NavGroup[] {
+  const groups: NavGroup[] = [];
+  for (const item of items) {
+    const label = item.group ?? "";
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) {
+      last.items.push(item);
+    } else {
+      groups.push({ label, items: [item] });
+    }
+  }
+  return groups;
+}
 
 // Fonte única da lista de seções do painel — usada pela sidebar persistente
 // (admin-shell.tsx) e pelo fallback de acesso negado (getDefaultRoute, abaixo).
@@ -31,13 +53,18 @@ export function getNavSections({
   const hasEstoque = enabledModules.includes("estoque");
   const hasPromocoes = enabledModules.includes("promocoes");
   const hasFinanceiro = enabledModules.includes("financeiro");
-  const hasUsuarios = enabledModules.includes("usuarios");
+  const hasCadastros = hasModule(enabledModules, "cadastros");
+  const hasCompras = enabledModules.includes("compras");
+  const hasFiscal = enabledModules.includes("fiscal");
+  const hasOnline = enabledModules.includes("online");
 
   const canManageProducts = hasProdutos && permissions.includes("gerenciar:produtos");
   const canManagePromotions =
     hasPromocoes && permissions.includes("gerenciar:promocoes");
-  const canManageUsers = hasUsuarios && permissions.includes("gerenciar:usuarios");
-  const canManageRoles = hasUsuarios && permissions.includes("gerenciar:papeis");
+  const canManageUsers =
+    hasCadastros && permissions.includes("gerenciar:usuarios");
+  const canManageRoles =
+    hasCadastros && permissions.includes("gerenciar:papeis");
   const canAccessFinance = hasFinanceiro && permissions.includes("acessar:financeiro");
 
   // PDV/Pedidos (Fase 4, constitution.md §1.6 — prioridade nº1) sem gate de
@@ -50,18 +77,59 @@ export function getNavSections({
       title: "PDV",
       description: "Montar carrinho e enviar pedido pra fila de pagamento.",
       sidebar: true,
+      group: "Vendas",
     },
     hasVendas && {
       href: "/painel/pedidos",
       title: "Pedidos",
       description: "Cobrar pedidos pendentes e conferir o histórico.",
       sidebar: true,
+      group: "Vendas",
+    },
+    hasVendas &&
+      permissions.includes("acessar:financeiro") && {
+        href: "/painel/financeiro",
+        title: "Caixa",
+        description: "Abertura, fechamento e movimento do caixa do dia.",
+        sidebar: true,
+        group: "Vendas",
+      },
+    hasOnline && {
+      href: "/painel/venda-online",
+      title: "Venda online",
+      description: "Loja online e catálogo publicado.",
+      sidebar: true,
+      group: "Vendas",
     },
     canManageProducts && {
       href: "/painel/produtos",
       title: "Produtos",
-      description: "Cadastro de produtos, preço e estoque.",
+      description: hasEstoque
+        ? "Cadastro de produtos, preço e estoque."
+        : "Cadastro de produtos e preço.",
       sidebar: true,
+      group: "Produtos",
+    },
+    canManageProducts && {
+      href: "/painel/produtos/categorias",
+      title: "Categorias",
+      description: "Organize os produtos por categoria.",
+      sidebar: true,
+      group: "Produtos",
+    },
+    canManageProducts && {
+      href: "/painel/produtos/subcategorias",
+      title: "Subcategorias",
+      description: "Refine a organização dentro de cada categoria.",
+      sidebar: true,
+      group: "Produtos",
+    },
+    canManageProducts && {
+      href: "/painel/produtos/importacoes",
+      title: "Importação",
+      description: "Planilha de fornecedor e fila de revisão.",
+      sidebar: true,
+      group: "Produtos",
     },
     hasEstoque &&
       permissions.includes("gerenciar:produtos") && {
@@ -69,40 +137,83 @@ export function getNavSections({
         title: "Estoque",
         description: "Saldo por produto e histórico de movimentações.",
         sidebar: true,
+        group: "Produtos",
       },
     canManagePromotions && {
       href: "/painel/produtos/promocoes",
       title: "Promoções",
       description: "Preço promocional por período ou dia da semana.",
       sidebar: true,
+      group: "Produtos",
+    },
+    hasCompras &&
+      permissions.includes("gerenciar:compras") && {
+        href: "/painel/compras",
+        title: "Compras",
+        description: "Pedidos de compra e recebimento de mercadoria.",
+        sidebar: true,
+        group: "Compras",
+      },
+    canAccessFinance && {
+      href: "/painel/contas-a-pagar",
+      title: "Contas a pagar",
+      description: "Notas de fornecedor e parcelas.",
+      sidebar: true,
+      group: "Financeiro",
     },
     canAccessFinance && {
-      href: "/painel/financeiro",
-      title: "Financeiro",
-      description: "Caixa, demonstrativo e relatórios de vendas.",
+      href: "/painel/contas-a-receber",
+      title: "Contas a receber",
+      description: "Recebimentos gerados pelas vendas pagas.",
       sidebar: true,
+      group: "Financeiro",
     },
+    canAccessFinance && {
+      href: "/painel/maquininha",
+      title: "Maquininha",
+      description: "Taxas da operadora e o que cai na conta.",
+      sidebar: true,
+      group: "Financeiro",
+    },
+    hasFiscal &&
+      permissions.includes("acessar:financeiro") && {
+        href: "/painel/fiscal",
+        title: "Fiscal",
+        description: "Configuração da loja e NFC-e simulada.",
+        sidebar: true,
+        group: "Fiscal",
+      },
+    hasFiscal &&
+      permissions.includes("acessar:financeiro") && {
+        href: "/painel/contabil",
+        title: "Contábil",
+        description: "DRE, contas a pagar e a receber do período.",
+        sidebar: true,
+        group: "Fiscal",
+      },
     (canManageUsers || canManageRoles) && {
       href: "/painel/usuarios",
       title: "Usuários",
       description: "Funcionários, papéis e permissões.",
       sidebar: true,
+      group: "Cadastros",
     },
-    canManageProducts && {
-      href: "/painel/produtos/categorias",
-      title: "Categorias",
-      description: "Organize os produtos por categoria.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos/subcategorias",
-      title: "Subcategorias",
-      description: "Refine a organização dentro de cada categoria.",
-    },
-    canManageProducts && {
-      href: "/painel/produtos/importacoes",
-      title: "Importação",
-      description: "Planilha de fornecedor e fila de revisão.",
-    },
+    hasCadastros &&
+      permissions.includes("gerenciar:clientes") && {
+        href: "/painel/clientes",
+        title: "Clientes",
+        description: "Cadastro de clientes da loja.",
+        sidebar: true,
+        group: "Cadastros",
+      },
+    hasCadastros &&
+      permissions.includes("gerenciar:fornecedores") && {
+        href: "/painel/fornecedores",
+        title: "Fornecedores",
+        description: "Cadastro de fornecedores.",
+        sidebar: true,
+        group: "Cadastros",
+      },
   ];
 
   return sections.filter((section): section is NavSection => Boolean(section));

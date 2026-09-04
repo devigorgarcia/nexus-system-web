@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -152,16 +155,25 @@ export function PedidosScreen() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl">Pedidos</h1>
+    <div>
+      <PageHeader
+        title="Pedidos"
+        description="Cobrar pedidos pendentes e conferir o histórico."
+      />
+
+      <PageBody>
+      <PageToolbar>
         <Select
           value={statusFilter || undefined}
           onValueChange={(value) =>
             setStatusFilter(!value || value === TODOS_STATUS ? "" : value)
           }
         >
-          <SelectTrigger className="w-40" aria-label="Filtrar por status">
+          <SelectTrigger
+            size="sm"
+            className="w-full sm:w-40"
+            aria-label="Filtrar por status"
+          >
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -170,14 +182,14 @@ export function PedidosScreen() {
             <SelectItem value="PAGO">Pago</SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
+      </PageToolbar>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Pedido</TableHead>
             <TableHead>Itens</TableHead>
             <TableHead>Total</TableHead>
+            <TableHead>Cliente</TableHead>
             <TableHead>Vendedor</TableHead>
             <TableHead>Pagamento</TableHead>
             <TableHead>Horário</TableHead>
@@ -193,6 +205,7 @@ export function PedidosScreen() {
               </TableCell>
               <TableCell>{sale.items.length}</TableCell>
               <TableCell>{formatCurrency(saleTotal(sale))}</TableCell>
+              <TableCell>{sale.customer?.name ?? "—"}</TableCell>
               <TableCell>{sale.vendedor.name}</TableCell>
               <TableCell>
                 {sale.paymentMethod ? PAYMENT_LABELS[sale.paymentMethod] : "—"}
@@ -324,14 +337,15 @@ export function PedidosScreen() {
                       {Array.from(
                         { length: allowsInstallments ? 12 : 1 },
                         (_, i) => i + 1,
-                      ).map((n) => (
-                        <SelectItem key={n} value={String(n)}>
-                          {n}x
-                          {n >= 3
-                            ? ` (+${(surchargeRate(n) * 100).toFixed(0)}%)`
-                            : ""}
-                        </SelectItem>
-                      ))}
+                      ).map((n) => {
+                        const totalN =
+                          chargeTotal * (1 + surchargeRate(n));
+                        return (
+                          <SelectItem key={n} value={String(n)}>
+                            {n}x de {formatCurrency(totalN / n)}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   {!allowsInstallments && (
@@ -339,12 +353,17 @@ export function PedidosScreen() {
                       Parcelamento só é permitido pra venda acima de R$100,00.
                     </p>
                   )}
-                  {installments >= 3 && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Total com acréscimo:{" "}
-                      {formatCurrency(chargeTotal * (1 + surchargeRate(installments)))}
-                    </p>
-                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {installments}x de{" "}
+                    {formatCurrency(
+                      (chargeTotal * (1 + surchargeRate(installments))) /
+                        installments,
+                    )}
+                    {" — total "}
+                    {formatCurrency(
+                      chargeTotal * (1 + surchargeRate(installments)),
+                    )}
+                  </p>
                 </div>
               )}
 
@@ -410,7 +429,10 @@ export function PedidosScreen() {
                           ? PAYMENT_LABELS[receipt.paymentMethod]
                           : "—"}
                         {receipt.installments && receipt.installments > 1
-                          ? ` ${receipt.installments}x`
+                          ? ` ${receipt.installments}x de ${formatCurrency(
+                              Number(receipt.totalWithSurcharge) /
+                                receipt.installments,
+                            )}`
                           : ""}
                       </span>
                     </div>
@@ -419,6 +441,9 @@ export function PedidosScreen() {
                       <span>{receipt.vendedor.name}</span>
                     </div>
                   </div>
+                  <p className="mt-3 text-center text-[10px] leading-tight text-muted-foreground">
+                    *** Este documento não é um cupom fiscal ***
+                  </p>
                 </div>
               ))}
             </div>
@@ -431,6 +456,7 @@ export function PedidosScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </PageBody>
     </div>
   );
 }

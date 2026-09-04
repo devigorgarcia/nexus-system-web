@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,13 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -29,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { searchCategories } from "@/lib/search-options";
 import type { CategoryListItem } from "../categorias/types";
 import type { SubcategoryListItem } from "./types";
 
@@ -46,6 +44,7 @@ const EMPTY_FORM: SubcategoryFormState = { name: "" };
 export function SubcategoriasScreen() {
   const [categories, setCategories] = useState<CategoryListItem[]>([]);
   const [categoryId, setCategoryId] = useState("");
+  const [categoryName, setCategoryName] = useState("");
   const [subcategories, setSubcategories] = useState<SubcategoryListItem[]>(
     [],
   );
@@ -61,6 +60,7 @@ export function SubcategoriasScreen() {
     setCategories(data);
     if (!categoryId && data.length > 0) {
       setCategoryId(data[0].id);
+      setCategoryName(data[0].name);
     }
   }
 
@@ -147,37 +147,41 @@ export function SubcategoriasScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl">Subcategorias</h1>
-        <Button onClick={openCreateDialog} disabled={!categoryId}>
-          + Nova subcategoria
-        </Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Subcategorias"
+        description="Refine a organização dentro de cada categoria."
+        actions={
+          <Button onClick={openCreateDialog} disabled={!categoryId}>
+            <Plus className="size-3.5" />
+            Nova subcategoria
+          </Button>
+        }
+      />
 
-      <div className="mb-4 flex flex-col gap-1.5">
-        <Label htmlFor="subcategory-category">Categoria</Label>
-        <Select
-          value={categoryId || undefined}
-          onValueChange={(value) => setCategoryId(value ?? "")}
-        >
-          <SelectTrigger id="subcategory-category" className="w-64">
-            <SelectValue placeholder="Selecione uma categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <PageBody>
+      <PageToolbar className="items-end">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <Label htmlFor="subcategory-category">Categoria</Label>
+          <SearchableSelect
+            id="subcategory-category"
+            className="w-full sm:w-64"
+            value={categoryId}
+            valueLabel={categoryName}
+            fetchOptions={searchCategories}
+            placeholder="Selecione uma categoria"
+            onChange={(value, option) => {
+              setCategoryId(value);
+              setCategoryName(option?.label ?? "");
+            }}
+          />
+        </div>
         {categories.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Cadastre uma categoria antes de criar subcategorias.
           </p>
         )}
-      </div>
+      </PageToolbar>
 
       <Table>
         <TableHeader>
@@ -258,6 +262,7 @@ export function SubcategoriasScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </PageBody>
     </div>
   );
 }

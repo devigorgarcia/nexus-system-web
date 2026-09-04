@@ -1,6 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { Button } from "@/components/ui/button";
 import {
   Tabs,
   TabsContent,
@@ -23,22 +28,37 @@ export function UsuariosScreen({
   canManageRoles,
 }: UsuariosScreenProps) {
   const [tab, setTab] = useState(canManageUsers ? "usuarios" : "permissoes");
+  const [createRequest, setCreateRequest] = useState(0);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <h1 className="mb-6 font-heading text-2xl">Usuários</h1>
+    <div>
+      <PageHeader
+        title="Usuários"
+        description="Funcionários, papéis e permissões."
+        actions={
+          tab === "usuarios" ? (
+            <Button onClick={() => setCreateRequest((n) => n + 1)}>
+              <Plus className="size-3.5" />
+              Novo usuário
+            </Button>
+          ) : null
+        }
+      />
+      <PageBody>
       <Tabs value={tab} onValueChange={(value) => setTab(value as string)}>
-        <TabsList>
-          {canManageUsers && (
-            <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          )}
-          {canManageRoles && (
-            <TabsTrigger value="permissoes">Permissões</TabsTrigger>
-          )}
-        </TabsList>
+        <PageToolbar>
+          <TabsList className="h-auto w-full flex-wrap justify-start sm:w-fit">
+            {canManageUsers && (
+              <TabsTrigger value="usuarios">Usuários</TabsTrigger>
+            )}
+            {canManageRoles && (
+              <TabsTrigger value="permissoes">Permissões</TabsTrigger>
+            )}
+          </TabsList>
+        </PageToolbar>
         {canManageUsers && (
           <TabsContent value="usuarios" className="mt-4">
-            <UsuariosTab />
+            <UsuariosTab createRequest={createRequest} />
           </TabsContent>
         )}
         {canManageRoles && (
@@ -47,6 +67,7 @@ export function UsuariosScreen({
           </TabsContent>
         )}
       </Tabs>
+      </PageBody>
     </div>
   );
 }

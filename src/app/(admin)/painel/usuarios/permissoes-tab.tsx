@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import { PageToolbar } from "@/components/page-toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -85,8 +86,8 @@ export function PermissoesTab() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-end gap-2">
-        <div className="flex flex-1 flex-col gap-1.5">
+      <PageToolbar className="items-end">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <label htmlFor="new-role-name" className="text-sm font-medium">
             Novo papel
           </label>
@@ -101,9 +102,10 @@ export function PermissoesTab() {
           onClick={() => void handleCreateRole()}
           disabled={creating || !newRoleName}
         >
+          <Plus className="size-3.5" />
           Criar perfil
         </Button>
-      </div>
+      </PageToolbar>
       {createError && (
         <p className="-mt-4 text-sm text-destructive" role="alert">
           {createError}

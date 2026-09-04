@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Ban } from "lucide-react";
+import { Ban, Plus } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MoneyInput } from "@/components/money-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,11 +35,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import type { ProductListItem, ProductsPage } from "../types";
+import { searchProducts } from "@/lib/search-options";
 import type { PromotionItem, PromotionsPage, PromotionStatus } from "./types";
 
 const PAGE_SIZE = 10;
-const TODOS_PRODUTOS = "__todos__";
 const TODOS_STATUS = "__todos_status__";
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -47,6 +51,7 @@ function statusBadgeClass(status: PromotionStatus) {
 
 interface PromotionFormState {
   productId: string;
+  productName: string;
   promoPrice: string;
   vigencyType: "PERIODO" | "DIA_SEMANA";
   startDate: string;
@@ -56,6 +61,7 @@ interface PromotionFormState {
 
 const EMPTY_FORM: PromotionFormState = {
   productId: "",
+  productName: "",
   promoPrice: "",
   vigencyType: "PERIODO",
   startDate: "",
@@ -64,12 +70,12 @@ const EMPTY_FORM: PromotionFormState = {
 };
 
 export function PromocoesScreen() {
-  const [products, setProducts] = useState<ProductListItem[]>([]);
   const [promotionsPage, setPromotionsPage] = useState<PromotionsPage | null>(
     null,
   );
   const [pageNum, setPageNum] = useState(1);
   const [productFilter, setProductFilter] = useState("");
+  const [productFilterLabel, setProductFilterLabel] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,12 +91,10 @@ export function PromocoesScreen() {
     if (productFilter) params.set("productId", productFilter);
     if (statusFilter) params.set("status", statusFilter);
 
-    const [promotionsData, productsData] = await Promise.all([
-      apiFetch<PromotionsPage>(`/promotions?${params.toString()}`),
-      apiFetch<ProductsPage>("/products?active=true&pageSize=100"),
-    ]);
+    const promotionsData = await apiFetch<PromotionsPage>(
+      `/promotions?${params.toString()}`,
+    );
     setPromotionsPage(promotionsData);
-    setProducts(productsData.items);
   }
 
   useEffect(() => {
@@ -165,36 +169,35 @@ export function PromocoesScreen() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl">Promoções</h1>
-        <Button onClick={openCreateDialog}>+ Nova promoção</Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Promoções"
+        description="Preço promocional por período ou dia da semana."
+        actions={
+          <Button onClick={openCreateDialog}>
+            <Plus className="size-3.5" />
+            Nova promoção
+          </Button>
+        }
+      />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Select
-          value={productFilter || undefined}
-          onValueChange={(value) => {
+      <PageBody>
+      <PageToolbar>
+        <SearchableSelect
+          size="sm"
+          className="w-full sm:w-56"
+          aria-label="Filtrar por produto"
+          value={productFilter}
+          valueLabel={productFilterLabel}
+          fetchOptions={searchProducts}
+          placeholder="Todos os produtos"
+          emptyOption={{ value: "", label: "Todos os produtos" }}
+          onChange={(value, option) => {
             setPageNum(1);
-            setProductFilter(value === TODOS_PRODUTOS ? "" : (value ?? ""));
+            setProductFilter(value);
+            setProductFilterLabel(value ? (option?.label ?? "") : "");
           }}
-        >
-          <SelectTrigger
-            size="sm"
-            className="w-56"
-            aria-label="Filtrar por produto"
-          >
-            <SelectValue placeholder="Todos os produtos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS_PRODUTOS}>Todos os produtos</SelectItem>
-            {products.map((product) => (
-              <SelectItem key={product.id} value={product.id}>
-                {product.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
 
         <Select
           value={statusFilter || undefined}
@@ -205,7 +208,7 @@ export function PromocoesScreen() {
         >
           <SelectTrigger
             size="sm"
-            className="w-40"
+            className="w-full sm:w-40"
             aria-label="Filtrar por status"
           >
             <SelectValue placeholder="Todos os status" />
@@ -217,7 +220,7 @@ export function PromocoesScreen() {
             <SelectItem value="encerrada">Encerrada</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </PageToolbar>
 
       <Table>
         <TableHeader>
@@ -308,34 +311,29 @@ export function PromocoesScreen() {
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="promotion-product">Produto</Label>
-              <Select
-                value={form.productId || undefined}
-                onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, productId: value ?? "" }))
+              <SearchableSelect
+                id="promotion-product"
+                value={form.productId}
+                valueLabel={form.productName}
+                fetchOptions={searchProducts}
+                placeholder="Selecione um produto"
+                onChange={(value, option) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    productId: value,
+                    productName: option?.label ?? "",
+                  }))
                 }
-              >
-                <SelectTrigger id="promotion-product" className="w-full">
-                  <SelectValue placeholder="Selecione um produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="promotion-price">Preço promocional (R$)</Label>
-              <Input
+              <Label htmlFor="promotion-price">Preço promocional</Label>
+              <MoneyInput
                 id="promotion-price"
-                inputMode="decimal"
-                placeholder="0.00"
                 value={form.promoPrice}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, promoPrice: e.target.value }))
+                onChange={(promoPrice) =>
+                  setForm((prev) => ({ ...prev, promoPrice }))
                 }
               />
             </div>
@@ -434,6 +432,7 @@ export function PromocoesScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </PageBody>
     </div>
   );
 }

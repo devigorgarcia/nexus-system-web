@@ -12,7 +12,11 @@ export interface StockMovementItem {
   // String, não number (T4.11) — `StockMovement.quantity` virou `Decimal`.
   quantity: string;
   createdAt: string;
-  product: { id: string; name: string };
+  product: {
+    id: string;
+    name: string;
+    unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
+  };
   user: { id: string; name: string };
 }
 

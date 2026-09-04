@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { getLiveAccess } from "@/lib/live-access";
 import { AdminShell } from "./admin-shell";
 import { getNavSections } from "./nav-sections";
 
@@ -26,9 +27,14 @@ export default async function AdminLayout({
     redirect("/painel-admin");
   }
 
-  const navItems = getNavSections({
+  const access = (await getLiveAccess()) ?? {
     permissions: session.user.permissions,
     enabledModules: session.user.enabledModules,
+  };
+
+  const navItems = getNavSections({
+    permissions: access.permissions,
+    enabledModules: access.enabledModules,
   }).filter((section) => section.sidebar);
 
   return (
@@ -36,6 +42,7 @@ export default async function AdminLayout({
       <AdminShell
         navItems={navItems}
         user={{ name: session.user.name, email: session.user.email }}
+        enabledModules={access.enabledModules}
       >
         {children}
       </AdminShell>

@@ -25,7 +25,7 @@ test("PDV: login → buscar → carrinho → finalizar → cobrar → confirmar 
   // Cadastra o produto (T3.5) — precisa existir antes de aparecer na busca
   // do PDV (T4.3, só produto ativo com saldo > 0).
   await page.goto("/painel/produtos");
-  await page.getByRole("button", { name: "+ Novo produto" }).click();
+  await page.getByRole("button", { name: "Novo produto" }).click();
   await page.getByLabel("Nome").fill(productName);
   await page.getByLabel("Custo (R$)").fill("5.00");
   await page.getByLabel("Venda (R$)").fill("12.00");
@@ -35,7 +35,7 @@ test("PDV: login → buscar → carrinho → finalizar → cobrar → confirmar 
   // Lança entrada de estoque (T3.6) — sem saldo, o produto não aparece na
   // busca do PDV (PRD §4.9).
   await page.goto("/painel/produtos/estoque");
-  await page.getByRole("button", { name: "+ Nova movimentação" }).click();
+  await page.getByRole("button", { name: "Nova movimentação" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Produto").click();
   await page.getByRole("option", { name: productName }).click();

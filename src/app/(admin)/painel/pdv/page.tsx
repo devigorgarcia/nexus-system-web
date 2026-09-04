@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
+import { getLiveAccess } from "@/lib/live-access";
+import { hasModule } from "@/lib/modules";
 import { PdvScreen } from "./pdv-screen";
 
 // PDV (T4.4) — prioridade nº1 do produto (constitution.md §1.6), também é o
@@ -30,7 +32,7 @@ export default async function PdvPage() {
       redirect(fallback);
     }
     return (
-      <div className="mx-auto max-w-md px-6 py-16 text-center">
+      <div className="px-4 py-16 text-center sm:px-6">
         <h1 className="font-heading text-xl">Nenhum módulo liberado</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Sua empresa ainda não tem nenhum módulo habilitado pro seu usuário.
@@ -40,15 +42,18 @@ export default async function PdvPage() {
     );
   }
 
-  const canSelectVendedor = session.user.permissions.includes(
-    "selecionar:vendedor",
-  );
+  const access = (await getLiveAccess()) ?? {
+    permissions: session.user.permissions,
+    enabledModules: session.user.enabledModules,
+  };
+  const canSelectVendedor = access.permissions.includes("selecionar:vendedor");
 
   return (
     <PdvScreen
       currentUserId={session.user.id}
       currentUserName={session.user.name}
       canSelectVendedor={canSelectVendedor}
+      canSelectCustomer={hasModule(access.enabledModules, "cadastros")}
     />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PageToolbar } from "@/components/page-toolbar";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -12,11 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { apiFetch, ApiError } from "@/lib/api-client";
-
-interface ModuleCatalogItem {
-  key: string;
-  label: string;
-}
+import {
+  CADASTROS_KEYS,
+  cadastroKeysInCatalog,
+  groupCadastroCatalog,
+  type ModuleCatalogItem,
+} from "@/lib/modules";
 
 interface CompanyListItem {
   id: string;
@@ -70,11 +72,27 @@ export function CompaniesPanel() {
   }, []);
 
   const selected = companies.find((company) => company.id === selectedId) ?? null;
+  const displayCatalog = groupCadastroCatalog(catalog);
 
-  async function toggleModule(company: CompanyListItem, moduleKey: string) {
-    const nextModules = company.enabledModules.includes(moduleKey)
-      ? company.enabledModules.filter((key) => key !== moduleKey)
-      : [...company.enabledModules, moduleKey];
+  async function toggleModule(
+    company: CompanyListItem,
+    moduleKey: string,
+    aliases: string[],
+  ) {
+    const enabled = aliases.some((key) => company.enabledModules.includes(key));
+    let nextModules: string[];
+    if (moduleKey === "cadastros") {
+      const withoutFamily = company.enabledModules.filter(
+        (key) => !(CADASTROS_KEYS as readonly string[]).includes(key),
+      );
+      nextModules = enabled
+        ? withoutFamily
+        : [...withoutFamily, ...cadastroKeysInCatalog(catalog)];
+    } else {
+      nextModules = enabled
+        ? company.enabledModules.filter((key) => !aliases.includes(key))
+        : [...company.enabledModules, moduleKey];
+    }
 
     setError(null);
     setSavingKey(moduleKey);
@@ -107,38 +125,40 @@ export function CompaniesPanel() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium" htmlFor="company-select">
-          Cliente
-        </label>
-        <Select
-          value={selectedId ?? undefined}
-          onValueChange={(value) => setSelectedId(value ?? null)}
-        >
-          <SelectTrigger id="company-select" className="w-full sm:w-96">
-            <SelectValue placeholder="Selecione um cliente">
-              {(value: string | null) => {
-                const company = companies.find((item) => item.id === value);
-                return company ? `${company.code} — ${company.name}` : null;
-              }}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {companies.map((company) => (
-              <SelectItem key={company.id} value={company.id}>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {company.code}
-                </span>
-                <span>{company.name}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <PageToolbar className="items-end">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <label className="text-sm font-medium" htmlFor="company-select">
+            Cliente
+          </label>
+          <Select
+            value={selectedId ?? undefined}
+            onValueChange={(value) => setSelectedId(value ?? null)}
+          >
+            <SelectTrigger id="company-select" className="w-full max-w-xl">
+              <SelectValue placeholder="Selecione um cliente">
+                {(value: string | null) => {
+                  const company = companies.find((item) => item.id === value);
+                  return company ? `${company.code} — ${company.name}` : null;
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((company) => (
+                <SelectItem key={company.id} value={company.id}>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {company.code}
+                  </span>
+                  <span>{company.name}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <p className="text-xs text-muted-foreground">
           {companies.length}{" "}
           {companies.length === 1 ? "cliente cadastrado" : "clientes cadastrados"}
         </p>
-      </div>
+      </PageToolbar>
 
       {selected && (
         <Card className="p-5">
@@ -163,7 +183,14 @@ export function CompaniesPanel() {
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-medium">Módulos habilitados</h3>
             <span className="text-xs text-muted-foreground">
-              {selected.enabledModules.length} de {catalog.length}
+              {
+                displayCatalog.filter((module) =>
+                  module.aliases.some((key) =>
+                    selected.enabledModules.includes(key),
+                  ),
+                ).length
+              }{" "}
+              de {displayCatalog.length}
             </span>
           </div>
 
@@ -174,24 +201,45 @@ export function CompaniesPanel() {
           )}
 
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            {catalog.map((module) => {
-              const enabled = selected.enabledModules.includes(module.key);
+            {displayCatalog.map((module) => {
+              const enabled = module.aliases.some((key) =>
+                selected.enabledModules.includes(key),
+              );
               const isSaving = savingKey === module.key;
               return (
-                <label
+                <div
                   key={module.key}
-                  htmlFor={`module-${module.key}`}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3.5 py-2.5 text-sm transition-colors aria-disabled:opacity-60"
-                  aria-disabled={isSaving}
+                  className="rounded-lg border border-border px-3.5 py-2.5"
                 >
-                  {module.label}
-                  <Switch
-                    id={`module-${module.key}`}
-                    checked={enabled}
-                    disabled={isSaving}
-                    onCheckedChange={() => void toggleModule(selected, module.key)}
-                  />
-                </label>
+                  <label
+                    htmlFor={`module-${module.key}`}
+                    className="flex items-center justify-between gap-3 text-sm aria-disabled:opacity-60"
+                    aria-disabled={isSaving}
+                  >
+                    <span className="font-medium">{module.label}</span>
+                    <Switch
+                      id={`module-${module.key}`}
+                      checked={enabled}
+                      disabled={isSaving}
+                      onCheckedChange={() =>
+                        void toggleModule(selected, module.key, module.aliases)
+                      }
+                    />
+                  </label>
+                  {module.includes?.length ? (
+                    <ul
+                      className={`mt-2 space-y-0.5 text-xs ${
+                        enabled
+                          ? "text-muted-foreground"
+                          : "text-muted-foreground/60"
+                      }`}
+                    >
+                      {module.includes.map((item) => (
+                        <li key={item}>· {item}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               );
             })}
           </div>

@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Eye, X } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { QuickCreateDialog } from "@/components/quick-create-dialog";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MoneyInput } from "@/components/money-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,7 +36,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, apiUpload, ApiError } from "@/lib/api-client";
+import { searchCategories } from "@/lib/search-options";
 import type { CategoryListItem } from "../categorias/types";
+import { useHasModule } from "@/lib/modules-context";
 import type { ImportSummary, PendingImportItem, PendingImportsPage } from "./types";
 
 const PAGE_SIZE = 10;
@@ -40,22 +48,25 @@ interface ReviewFormState {
   name: string;
   salePrice: string;
   categoryId: string;
+  categoryName: string;
 }
 
 const EMPTY_REVIEW_FORM: ReviewFormState = {
   name: "",
   salePrice: "",
   categoryId: "",
+  categoryName: "",
 };
 
 export function ImportacoesScreen() {
+  const hasEstoque = useHasModule("estoque");
   const [supplierName, setSupplierName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lastSummary, setLastSummary] = useState<ImportSummary | null>(null);
 
-  const [categories, setCategories] = useState<CategoryListItem[]>([]);
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
   const [pendingPage, setPendingPage] = useState<PendingImportsPage | null>(
     null,
   );
@@ -78,12 +89,10 @@ export function ImportacoesScreen() {
     if (supplierFilter) params.set("supplierName", supplierFilter);
     if (kindFilter) params.set("kind", kindFilter);
 
-    const [pendingData, categoriesData] = await Promise.all([
-      apiFetch<PendingImportsPage>(`/product-imports/pending?${params.toString()}`),
-      apiFetch<CategoryListItem[]>("/categories?active=true"),
-    ]);
+    const pendingData = await apiFetch<PendingImportsPage>(
+      `/product-imports/pending?${params.toString()}`,
+    );
     setPendingPage(pendingData);
-    setCategories(categoriesData);
   }
 
   useEffect(() => {
@@ -121,6 +130,18 @@ export function ImportacoesScreen() {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function handleCreateCategory(name: string) {
+    const created = await apiFetch<CategoryListItem>("/categories", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+    setReviewForm((prev) => ({
+      ...prev,
+      categoryId: created.id,
+      categoryName: created.name,
+    }));
   }
 
   function openReview(item: PendingImportItem) {
@@ -184,9 +205,13 @@ export function ImportacoesScreen() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <h1 className="mb-6 font-heading text-2xl">Importação de produtos</h1>
+    <div>
+      <PageHeader
+        title="Importação"
+        description="Planilha de fornecedor e fila de revisão."
+      />
 
+      <PageBody>
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>Importar planilha</CardTitle>
@@ -202,7 +227,7 @@ export function ImportacoesScreen() {
                 id="supplier-name"
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
-                className="w-56"
+                className="w-full sm:w-56"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -227,17 +252,18 @@ export function ImportacoesScreen() {
           )}
           {lastSummary && !uploadError && (
             <p className="mt-3 text-sm text-muted-foreground">
-              {lastSummary.totalRows} linha(s) lida(s) — {lastSummary.stockUpdated}{" "}
-              atualizaram estoque automaticamente, {lastSummary.pendingCreated}{" "}
-              foram pra fila de revisão.
+              {lastSummary.totalRows} linha(s) lida(s)
+              {hasEstoque
+                ? ` — ${lastSummary.stockUpdated} atualizaram estoque automaticamente`
+                : ""}
+              , {lastSummary.pendingCreated} foram pra fila de revisão.
             </p>
           )}
         </CardContent>
       </Card>
 
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-heading text-lg">Fila de revisão</h2>
-        <div className="flex gap-3">
+      <h2 className="mb-3 font-heading text-lg">Fila de revisão</h2>
+      <PageToolbar>
           <Input
             placeholder="Filtrar por fornecedor…"
             value={supplierFilter}
@@ -245,7 +271,7 @@ export function ImportacoesScreen() {
               setPageNum(1);
               setSupplierFilter(e.target.value);
             }}
-            className="w-56"
+            className="w-full sm:w-56"
           />
           <Select
             value={kindFilter || undefined}
@@ -256,7 +282,7 @@ export function ImportacoesScreen() {
           >
             <SelectTrigger
               size="sm"
-              className="w-48"
+              className="w-full sm:w-48"
               aria-label="Filtrar por tipo de pendência"
             >
               <SelectValue placeholder="Todos os tipos" />
@@ -267,8 +293,7 @@ export function ImportacoesScreen() {
               <SelectItem value="CUSTO_ALTERADO">Custo alterado</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </div>
+      </PageToolbar>
 
       <Table>
         <TableHeader>
@@ -394,42 +419,34 @@ export function ImportacoesScreen() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="review-sale-price">Preço de venda (R$)</Label>
-                <Input
+                <Label htmlFor="review-sale-price">Preço de venda</Label>
+                <MoneyInput
                   id="review-sale-price"
-                  inputMode="decimal"
-                  placeholder="0.00"
                   value={reviewForm.salePrice}
-                  onChange={(e) =>
-                    setReviewForm((prev) => ({
-                      ...prev,
-                      salePrice: e.target.value,
-                    }))
+                  onChange={(salePrice) =>
+                    setReviewForm((prev) => ({ ...prev, salePrice }))
                   }
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="review-category">Categoria</Label>
-                <Select
-                  value={reviewForm.categoryId || undefined}
-                  onValueChange={(value) =>
+                <SearchableSelect
+                  id="review-category"
+                  value={reviewForm.categoryId}
+                  valueLabel={reviewForm.categoryName}
+                  fetchOptions={searchCategories}
+                  placeholder="Sem categoria"
+                  emptyOption={{ value: "", label: "Sem categoria" }}
+                  createLabel="Criar categoria"
+                  onCreate={() => setCreateCategoryOpen(true)}
+                  onChange={(value, option) =>
                     setReviewForm((prev) => ({
                       ...prev,
-                      categoryId: value ?? "",
+                      categoryId: value,
+                      categoryName: value ? (option?.label ?? "") : "",
                     }))
                   }
-                >
-                  <SelectTrigger id="review-category" className="w-full">
-                    <SelectValue placeholder="Sem categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
             </div>
           ) : (
@@ -462,6 +479,14 @@ export function ImportacoesScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <QuickCreateDialog
+        open={createCategoryOpen}
+        onOpenChange={setCreateCategoryOpen}
+        title="Nova categoria"
+        placeholder="Ex.: Velas aromáticas"
+        onSubmit={handleCreateCategory}
+      />
+      </PageBody>
     </div>
   );
 }

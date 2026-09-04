@@ -3,60 +3,86 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import type { ReactNode } from "react";
-import type { NavSection } from "./nav-sections";
+import { useState, type ReactNode } from "react";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { EnabledModulesProvider } from "@/lib/modules-context";
+import { groupNavSections, type NavSection } from "./nav-sections";
 
 type AdminShellProps = {
   navItems: NavSection[];
   user: { name: string; email: string };
+  enabledModules: string[];
   children: ReactNode;
 };
 
-// Sidebar 220px fixa — recriando o handoff de design
-// (design_handoff_nexus/README.md, seção "Screens / Views" e
-// "Design Tokens"). O layout anterior (T1.3) não tinha nenhum shell de
-// navegação persistente, só os cards do hub em /painel.
-//
-// Sem barra superior: conferido contra o próprio protótipo Hi-Fi (e contra o
-// print do Figma) — o design não tem nenhuma barra de topo, só sidebar + main
-// com o título de cada tela solto no próprio conteúdo. "Sair" não existe no
-// design (protótipo client-only, sem sessão de verdade), mas um app real
-// precisa da ação — colocado no rodapé da sidebar, perto da identidade do
-// usuário, em vez de inventar uma barra que a Hi-Fi não tem.
-export function AdminShell({ navItems, user, children }: AdminShellProps) {
-  const pathname = usePathname();
-
-  // Item de sidebar cujo href é o prefixo mais específico da rota atual —
-  // ordenado por tamanho decrescente pra "/painel/produtos/estoque" casar com
-  // "Estoque" em vez do prefixo mais genérico "Produtos".
-  const activeItem = [...navItems]
+function useActiveHref(navItems: NavSection[], pathname: string) {
+  return [...navItems]
     .sort((a, b) => b.href.length - a.href.length)
-    .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    ?.href;
+}
 
+function Brand({
+  href,
+  onNavigate,
+}: {
+  href: string;
+  onNavigate?: () => void;
+}) {
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-[220px] flex-shrink-0 flex-col bg-sidebar py-6 text-sidebar-foreground">
-        <Link
-          href={navItems[0]?.href ?? "/painel/pdv"}
-          className="mb-4 flex items-center gap-2.5 border-b border-sidebar-border px-6 pb-6"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-[15px]">
-            P
-          </span>
-          <span className="font-heading text-[15px]">Nexus</span>
-        </Link>
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="mb-4 flex items-center gap-2.5 border-b border-sidebar-border px-6 pb-6"
+    >
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-[15px]">
+        P
+      </span>
+      <span className="font-heading text-[15px]">Nexus</span>
+    </Link>
+  );
+}
 
-        <nav className="flex flex-col">
-          {navItems.map((item) => {
-            const isActive = item.href === activeItem?.href;
+function SidebarNav({
+  navItems,
+  activeHref,
+  onNavigate,
+}: {
+  navItems: NavSection[];
+  activeHref?: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-4">
+      {groupNavSections(navItems).map((group) => (
+        <div key={group.label || group.items[0]?.href} className="mt-3 first:mt-0">
+          {group.label ? (
+            <div className="px-6 pb-1.5 pt-1 text-[10px] font-semibold tracking-[0.14em] text-sidebar-foreground/45 uppercase">
+              {group.label}
+            </div>
+          ) : null}
+          {group.items.map((item) => {
+            const isActive = item.href === activeHref;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-2.5 border-l-[3px] px-6 py-2.5 text-sm"
+                onClick={onNavigate}
+                className="flex items-center gap-2.5 border-l-[3px] py-2 text-sm"
                 style={{
+                  paddingLeft: group.label ? "1.75rem" : "1.5rem",
+                  paddingRight: "1.5rem",
                   borderLeftColor: isActive ? "var(--primary)" : "transparent",
-                  backgroundColor: isActive ? "var(--sidebar-accent)" : "transparent",
+                  backgroundColor: isActive
+                    ? "var(--sidebar-accent)"
+                    : "transparent",
                   color: isActive
                     ? "var(--sidebar-accent-foreground)"
                     : "var(--sidebar-foreground)",
@@ -66,24 +92,123 @@ export function AdminShell({ navItems, user, children }: AdminShellProps) {
               </Link>
             );
           })}
-        </nav>
-
-        <div className="flex-1" />
-
-        <div className="border-t border-sidebar-border px-6 py-3.5 text-xs text-sidebar-foreground/70">
-          <div className="truncate">{user.name}</div>
-          <div className="truncate text-[11px] text-sidebar-foreground/50">{user.email}</div>
-          <button
-            type="button"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="mt-2 text-[11px] font-semibold text-sidebar-foreground/70 hover:text-sidebar-foreground"
-          >
-            Sair
-          </button>
         </div>
+      ))}
+    </nav>
+  );
+}
+
+function SidebarUser({ user }: { user: { name: string; email: string } }) {
+  return (
+    <div className="border-t border-sidebar-border px-6 py-3.5 text-xs text-sidebar-foreground/70">
+      <div className="truncate">{user.name}</div>
+      <div className="truncate text-[11px] text-sidebar-foreground/50">
+        {user.email}
+      </div>
+      <button
+        type="button"
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        className="mt-2 text-[11px] font-semibold text-sidebar-foreground/70 hover:text-sidebar-foreground"
+      >
+        Sair
+      </button>
+    </div>
+  );
+}
+
+function SidebarChrome({
+  navItems,
+  user,
+  activeHref,
+  onNavigate,
+}: {
+  navItems: NavSection[];
+  user: { name: string; email: string };
+  activeHref?: string;
+  onNavigate?: () => void;
+}) {
+  const home = navItems[0]?.href ?? "/painel/pdv";
+  return (
+    <>
+      <Brand href={home} onNavigate={onNavigate} />
+      <SidebarNav
+        navItems={navItems}
+        activeHref={activeHref}
+        onNavigate={onNavigate}
+      />
+      <SidebarUser user={user} />
+    </>
+  );
+}
+
+// Sidebar 220px no desktop. Abaixo de `lg` (tablet retrato e celular) o
+// menu vira uma barra no topo + gaveta, pra não comer a metade da tela.
+export function AdminShell({
+  navItems,
+  user,
+  enabledModules,
+  children,
+}: AdminShellProps) {
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const activeHref = useActiveHref(navItems, pathname);
+  const home = navItems[0]?.href ?? "/painel/pdv";
+  const activeTitle =
+    navItems.find((item) => item.href === activeHref)?.title ?? "Painel";
+
+  return (
+    <EnabledModulesProvider enabledModules={enabledModules}>
+    <div className="flex h-dvh min-h-0">
+      <aside className="hidden w-[220px] flex-shrink-0 flex-col bg-sidebar py-6 text-sidebar-foreground lg:flex">
+        <SidebarChrome
+          navItems={navItems}
+          user={user}
+          activeHref={activeHref}
+        />
       </aside>
 
-      <main className="flex-1 overflow-auto">{children}</main>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-2 border-b border-border bg-card px-3 py-2 lg:hidden">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Abrir menu"
+            onClick={() => setMenuOpen(true)}
+          >
+            <Menu />
+          </Button>
+          <Link href={home} className="font-heading text-[15px]">
+            Nexus
+          </Link>
+          <span className="truncate text-sm text-muted-foreground">
+            {activeTitle}
+          </span>
+        </div>
+
+        <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+          <SheetContent
+            side="left"
+            showCloseButton={false}
+            className="w-[min(20rem,88vw)] gap-0 bg-sidebar p-0 py-6 text-sidebar-foreground sm:max-w-none"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Menu do painel</SheetTitle>
+            </SheetHeader>
+            <SidebarChrome
+              navItems={navItems}
+              user={user}
+              activeHref={activeHref}
+              onNavigate={() => setMenuOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
+
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto bg-background">
+          {children}
+        </main>
+      </div>
     </div>
+    </EnabledModulesProvider>
   );
 }

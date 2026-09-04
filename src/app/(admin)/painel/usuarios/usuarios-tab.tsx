@@ -40,7 +40,7 @@ const EMPTY_FORM: UserFormState = {
   roleIds: [],
 };
 
-export function UsuariosTab() {
+export function UsuariosTab({ createRequest = 0 }: { createRequest?: number }) {
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [roles, setRoles] = useState<RoleListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,11 +67,13 @@ export function UsuariosTab() {
     void reload();
   }, []);
 
-  function openCreateDialog() {
-    setForm(EMPTY_FORM);
-    setFormError(null);
-    setDialogOpen(true);
-  }
+  useEffect(() => {
+    if (createRequest > 0) {
+      setForm(EMPTY_FORM);
+      setFormError(null);
+      setDialogOpen(true);
+    }
+  }, [createRequest]);
 
   function openEditDialog(user: UserListItem) {
     setForm({
@@ -161,10 +163,6 @@ export function UsuariosTab() {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
-        <Button onClick={openCreateDialog}>+ Novo usuário</Button>
-      </div>
-
       <Table>
         <TableHeader>
           <TableRow>

@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowRightLeft } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowRightLeft, Plus } from "lucide-react";
+import { PageBody } from "@/components/page-body";
+import { PageHeader } from "@/components/page-header";
+import { PageToolbar } from "@/components/page-toolbar";
+import { QuantityInput } from "@/components/quantity-input";
+import { SearchableSelect } from "@/components/searchable-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,8 +35,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
-import type { CategoryListItem } from "../categorias/types";
-import type { SubcategoryListItem } from "../subcategorias/types";
+import {
+  searchCategories,
+  searchProducts,
+  searchSubcategories,
+} from "@/lib/search-options";
+import {
+  formatQuantity,
+  quantityFieldLabel,
+  quantityToApi,
+  type ProductUnitType,
+} from "@/lib/unit-type";
 import type { ProductListItem, ProductsPage } from "../types";
 import type {
   StockMovementItem,
@@ -40,9 +54,6 @@ import type {
 } from "./types";
 
 const PAGE_SIZE = 10;
-const TODAS_CATEGORIAS = "__todas__";
-const TODAS_SUBCATEGORIAS = "__todas_sub__";
-const TODOS_PRODUTOS = "__todos__";
 const TODOS_TIPOS = "__todos_tipos__";
 
 type StockStatus = "ok" | "baixo" | "crítico";
@@ -71,32 +82,35 @@ function formatCurrency(value: number) {
 
 interface MovementFormState {
   productId: string;
+  productName: string;
+  unitType: ProductUnitType;
   type: "ENTRADA" | "SAIDA";
   quantity: string;
 }
 
 const EMPTY_MOVEMENT_FORM: MovementFormState = {
   productId: "",
+  productName: "",
+  unitType: "UNIDADE",
   type: "ENTRADA",
   quantity: "",
 };
 
 export function EstoqueScreen() {
   const [summary, setSummary] = useState<StockSummary | null>(null);
-  const [categories, setCategories] = useState<CategoryListItem[]>([]);
   const [balancePage, setBalancePage] = useState<ProductsPage | null>(null);
   const [balancePageNum, setBalancePageNum] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [subcategories, setSubcategories] = useState<SubcategoryListItem[]>(
-    [],
-  );
+  const [categoryFilterLabel, setCategoryFilterLabel] = useState("");
   const [subcategoryFilter, setSubcategoryFilter] = useState("");
+  const [subcategoryFilterLabel, setSubcategoryFilterLabel] = useState("");
 
   const [movementsPage, setMovementsPage] = useState<StockMovementsPage | null>(
     null,
   );
   const [movementPageNum, setMovementPageNum] = useState(1);
   const [movementProductFilter, setMovementProductFilter] = useState("");
+  const [movementProductLabel, setMovementProductLabel] = useState("");
   const [movementTypeFilter, setMovementTypeFilter] = useState("");
   const [movementFrom, setMovementFrom] = useState("");
   const [movementTo, setMovementTo] = useState("");
@@ -116,13 +130,11 @@ export function EstoqueScreen() {
     if (subcategoryFilter)
       balanceParams.set("subcategoryId", subcategoryFilter);
 
-    const [summaryData, categoriesData, balanceData] = await Promise.all([
+    const [summaryData, balanceData] = await Promise.all([
       apiFetch<StockSummary>("/products/stock-summary"),
-      apiFetch<CategoryListItem[]>("/categories?active=true"),
       apiFetch<ProductsPage>(`/products?${balanceParams.toString()}`),
     ]);
     setSummary(summaryData);
-    setCategories(categoriesData);
     setBalancePage(balanceData);
   }
 
@@ -151,20 +163,13 @@ export function EstoqueScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [balancePageNum, categoryFilter, subcategoryFilter]);
 
-  useEffect(() => {
-    // Subcategoria depende da categoria escolhida (T3.18, mesmo padrão do
-    // filtro de Produtos).
-    if (!categoryFilter) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSubcategories([]);
-      setSubcategoryFilter("");
-      return;
-    }
-    void apiFetch<SubcategoryListItem[]>(
-      `/subcategories?categoryId=${categoryFilter}&active=true`,
-    ).then(setSubcategories);
-    setSubcategoryFilter("");
-  }, [categoryFilter]);
+  const fetchFilterSubcategories = useCallback(
+    (query: string) =>
+      categoryFilter
+        ? searchSubcategories(query, categoryFilter)
+        : Promise.resolve([]),
+    [categoryFilter],
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -173,7 +178,13 @@ export function EstoqueScreen() {
   }, [movementPageNum, movementProductFilter, movementTypeFilter, movementFrom, movementTo]);
 
   function openMovementDialog(productId?: string) {
-    setForm({ ...EMPTY_MOVEMENT_FORM, productId: productId ?? "" });
+    const product = balancePage?.items.find((item) => item.id === productId);
+    setForm({
+      ...EMPTY_MOVEMENT_FORM,
+      productId: productId ?? "",
+      productName: product?.name ?? "",
+      unitType: product?.unitType ?? "UNIDADE",
+    });
     setFormError(null);
     setDialogOpen(true);
   }
@@ -191,7 +202,7 @@ export function EstoqueScreen() {
           // quantity` virou um padrão decimal (produto vendido por peso/
           // metro/volume aceita fração), mesmo formato de `costPrice`/
           // `salePrice` já usado no formulário de Produtos.
-          quantity: form.quantity,
+          quantity: quantityToApi(form.quantity),
         }),
       });
       setDialogOpen(false);
@@ -215,14 +226,19 @@ export function EstoqueScreen() {
     : 1;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl">Estoque</h1>
-        <Button onClick={() => openMovementDialog()}>
-          + Nova movimentação
-        </Button>
-      </div>
+    <div>
+      <PageHeader
+        title="Estoque"
+        description="Saldo por produto e histórico de movimentações."
+        actions={
+          <Button onClick={() => openMovementDialog()}>
+            <Plus className="size-3.5" />
+            Nova movimentação
+          </Button>
+        }
+      />
 
+      <PageBody>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader>
@@ -256,66 +272,44 @@ export function EstoqueScreen() {
         </Card>
       </div>
 
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-heading text-lg">Saldo por produto</h2>
-        <div className="flex gap-3">
-          <Select
-            value={categoryFilter || undefined}
-            onValueChange={(value) => {
+      <h2 className="mb-3 font-heading text-lg">Saldo por produto</h2>
+      <PageToolbar>
+          <SearchableSelect
+            size="sm"
+            className="w-full sm:w-48"
+            aria-label="Filtrar saldo por categoria"
+            value={categoryFilter}
+            valueLabel={categoryFilterLabel}
+            fetchOptions={searchCategories}
+            placeholder="Todas as categorias"
+            emptyOption={{ value: "", label: "Todas as categorias" }}
+            onChange={(value, option) => {
               setBalancePageNum(1);
-              setCategoryFilter(value === TODAS_CATEGORIAS ? "" : (value ?? ""));
+              setCategoryFilter(value);
+              setCategoryFilterLabel(value ? (option?.label ?? "") : "");
+              setSubcategoryFilter("");
+              setSubcategoryFilterLabel("");
             }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="w-48"
-              aria-label="Filtrar saldo por categoria"
-            >
-              <SelectValue placeholder="Todas as categorias" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODAS_CATEGORIAS}>
-                Todas as categorias
-              </SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
-          {categoryFilter && subcategories.length > 0 && (
-            <Select
-              value={subcategoryFilter || undefined}
-              onValueChange={(value) => {
+          {categoryFilter && (
+            <SearchableSelect
+              size="sm"
+              className="w-full sm:w-48"
+              aria-label="Filtrar saldo por subcategoria"
+              value={subcategoryFilter}
+              valueLabel={subcategoryFilterLabel}
+              fetchOptions={fetchFilterSubcategories}
+              placeholder="Todas as subcategorias"
+              emptyOption={{ value: "", label: "Todas as subcategorias" }}
+              onChange={(value, option) => {
                 setBalancePageNum(1);
-                setSubcategoryFilter(
-                  value === TODAS_SUBCATEGORIAS ? "" : (value ?? ""),
-                );
+                setSubcategoryFilter(value);
+                setSubcategoryFilterLabel(value ? (option?.label ?? "") : "");
               }}
-            >
-              <SelectTrigger
-                size="sm"
-                className="w-48"
-                aria-label="Filtrar saldo por subcategoria"
-              >
-                <SelectValue placeholder="Todas as subcategorias" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={TODAS_SUBCATEGORIAS}>
-                  Todas as subcategorias
-                </SelectItem>
-                {subcategories.map((subcategory) => (
-                  <SelectItem key={subcategory.id} value={subcategory.id}>
-                    {subcategory.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           )}
-        </div>
-      </div>
+      </PageToolbar>
 
       <Table>
         <TableHeader>
@@ -347,8 +341,12 @@ export function EstoqueScreen() {
                 <TableCell>
                   {product.category?.name ?? "Sem categoria"}
                 </TableCell>
-                <TableCell>{product.stock}</TableCell>
-                <TableCell>{product.minStock}</TableCell>
+                <TableCell>
+                  {formatQuantity(product.stock, product.unitType)}
+                </TableCell>
+                <TableCell>
+                  {formatQuantity(product.minStock, product.unitType)}
+                </TableCell>
                 <TableCell>
                   <Badge className={statusBadgeClass(status)}>{status}</Badge>
                 </TableCell>
@@ -393,32 +391,22 @@ export function EstoqueScreen() {
       </div>
 
       <h2 className="mb-3 font-heading text-lg">Histórico de movimentações</h2>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Select
-          value={movementProductFilter || undefined}
-          onValueChange={(value) => {
+      <PageToolbar>
+        <SearchableSelect
+          size="sm"
+          className="w-full sm:w-48"
+          aria-label="Filtrar histórico por produto"
+          value={movementProductFilter}
+          valueLabel={movementProductLabel}
+          fetchOptions={searchProducts}
+          placeholder="Todos os produtos"
+          emptyOption={{ value: "", label: "Todos os produtos" }}
+          onChange={(value, option) => {
             setMovementPageNum(1);
-            setMovementProductFilter(
-              value === TODOS_PRODUTOS ? "" : (value ?? ""),
-            );
+            setMovementProductFilter(value);
+            setMovementProductLabel(value ? (option?.label ?? "") : "");
           }}
-        >
-          <SelectTrigger
-            size="sm"
-            className="w-48"
-            aria-label="Filtrar histórico por produto"
-          >
-            <SelectValue placeholder="Todos os produtos" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TODOS_PRODUTOS}>Todos os produtos</SelectItem>
-            {balancePage?.items.map((product) => (
-              <SelectItem key={product.id} value={product.id}>
-                {product.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
 
         <Select
           value={movementTypeFilter || undefined}
@@ -429,7 +417,7 @@ export function EstoqueScreen() {
         >
           <SelectTrigger
             size="sm"
-            className="w-40"
+            className="w-full sm:w-40"
             aria-label="Filtrar histórico por tipo"
           >
             <SelectValue placeholder="Todos os tipos" />
@@ -448,7 +436,7 @@ export function EstoqueScreen() {
           <Input
             id="movement-from"
             type="date"
-            className="w-40"
+            className="w-full sm:w-40"
             value={movementFrom}
             onChange={(e) => {
               setMovementPageNum(1);
@@ -463,7 +451,7 @@ export function EstoqueScreen() {
           <Input
             id="movement-to"
             type="date"
-            className="w-40"
+            className="w-full sm:w-40"
             value={movementTo}
             onChange={(e) => {
               setMovementPageNum(1);
@@ -471,7 +459,7 @@ export function EstoqueScreen() {
             }}
           />
         </div>
-      </div>
+      </PageToolbar>
 
       <Table>
         <TableHeader>
@@ -533,23 +521,21 @@ export function EstoqueScreen() {
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="movement-product">Produto</Label>
-              <Select
-                value={form.productId || undefined}
-                onValueChange={(value) =>
-                  setForm((prev) => ({ ...prev, productId: value ?? "" }))
+              <SearchableSelect
+                id="movement-product"
+                value={form.productId}
+                valueLabel={form.productName}
+                fetchOptions={searchProducts}
+                placeholder="Selecione um produto"
+                onChange={(value, option) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    productId: value,
+                    productName: option?.label ?? "",
+                    unitType: option?.unitType ?? "UNIDADE",
+                  }))
                 }
-              >
-                <SelectTrigger id="movement-product" className="w-full">
-                  <SelectValue placeholder="Selecione um produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {balancePage?.items.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -574,14 +560,15 @@ export function EstoqueScreen() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="movement-quantity">Quantidade</Label>
-              <Input
+              <Label htmlFor="movement-quantity">
+                {quantityFieldLabel(form.unitType)}
+              </Label>
+              <QuantityInput
                 id="movement-quantity"
-                type="number"
-                min={1}
+                unitType={form.unitType}
                 value={form.quantity}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, quantity: e.target.value }))
+                onChange={(quantity) =>
+                  setForm((prev) => ({ ...prev, quantity }))
                 }
               />
             </div>
@@ -603,6 +590,7 @@ export function EstoqueScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </PageBody>
     </div>
   );
 }
@@ -614,7 +602,9 @@ function MovementRow({ movement }: { movement: StockMovementItem }) {
       <TableCell>
         {movement.type === "ENTRADA" ? "Entrada" : "Saída"}
       </TableCell>
-      <TableCell>{movement.quantity}</TableCell>
+      <TableCell>
+        {formatQuantity(movement.quantity, movement.product.unitType)}
+      </TableCell>
       <TableCell>{movement.user.name}</TableCell>
       <TableCell>
         {new Date(movement.createdAt).toLocaleString("pt-BR")}
