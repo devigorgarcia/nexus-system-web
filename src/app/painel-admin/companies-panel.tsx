@@ -118,7 +118,8 @@ export function CompaniesPanel() {
   if (companies.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        Nenhuma empresa cadastrada ainda.
+        Nenhuma empresa cadastrada ainda. Use Novo cliente para criar a
+        primeira e enviar a senha de acesso.
       </p>
     );
   }

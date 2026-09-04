@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import { searchProducts, searchSuppliers } from "@/lib/search-options";
 import { useHasModule } from "@/lib/modules-context";
 import type { PurchaseListItem } from "./types";
@@ -118,7 +118,7 @@ export function ComprasScreen() {
       });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao receber.");
+      alertApiError(error, "Erro ao receber.");
     }
   }
 
@@ -130,7 +130,7 @@ export function ComprasScreen() {
       });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao cancelar.");
+      alertApiError(error, "Erro ao cancelar.");
     }
   }
 

@@ -13,6 +13,35 @@ export class ApiError extends Error {
   }
 }
 
+// 401 em qualquer chamada = cookie de sessão inválido/expirado (a API só
+// devolve 401 do SessionGuard). Em vez de deixar cada tela tratar como erro
+// genérico (antes virava `alert()` nativo), dispara um handler global —
+// `SessionExpiredDialog` (montado nos shells admin/plataforma) abre o modal
+// e leva pro login. As telas reconhecem o tipo e não alertam por cima.
+export class SessionExpiredError extends ApiError {}
+
+type SessionExpiredHandler = () => void;
+let sessionExpiredHandler: SessionExpiredHandler | null = null;
+
+export function setSessionExpiredHandler(
+  handler: SessionExpiredHandler | null,
+): void {
+  sessionExpiredHandler = handler;
+}
+
+function sessionExpired(): SessionExpiredError {
+  sessionExpiredHandler?.();
+  return new SessionExpiredError(401, "Sessão expirada.");
+}
+
+// Alert padrão dos catch de tela — silencia quando a sessão expirou, porque
+// o modal global já é a UX inteira nesse caso (alert nativo por cima do
+// modal era exatamente o que não podia acontecer).
+export function alertApiError(error: unknown, fallback: string): void {
+  if (error instanceof SessionExpiredError) return;
+  alert(error instanceof ApiError ? error.message : fallback);
+}
+
 // NestJS trata handler que devolve `null`/`undefined` como "sem corpo" —
 // manda a resposta com `Content-Length: 0` (200 OK, sem nenhum byte),
 // nunca o JSON literal `"null"` (achado ao vivo construindo T5.2:
@@ -23,6 +52,18 @@ export class ApiError extends Error {
 async function parseJsonBody<T>(response: Response): Promise<T> {
   const text = await response.text();
   return (text ? JSON.parse(text) : undefined) as T;
+}
+
+function apiErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object" || !("message" in body)) {
+    return fallback;
+  }
+  const raw = (body as { message: unknown }).message;
+  if (Array.isArray(raw)) {
+    return raw.map(String).filter(Boolean).join(" ");
+  }
+  if (typeof raw === "string" && raw.trim()) return raw;
+  return fallback;
 }
 
 export async function apiFetch<T>(
@@ -42,13 +83,13 @@ export async function apiFetch<T>(
     },
   });
 
+  if (response.status === 401) {
+    throw sessionExpired();
+  }
+
   if (!response.ok) {
     const body: unknown = await parseJsonBody(response).catch(() => ({}));
-    const message =
-      body && typeof body === "object" && "message" in body
-        ? String((body as { message: unknown }).message)
-        : "Erro na requisição.";
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, apiErrorMessage(body, "Erro na requisição."));
   }
 
   if (response.status === 204) {
@@ -68,13 +109,16 @@ export async function apiDownload(path: string, filename: string): Promise<void>
     headers: { "X-Requested-With": "XMLHttpRequest" },
   });
 
+  if (response.status === 401) {
+    throw sessionExpired();
+  }
+
   if (!response.ok) {
     const body: unknown = await parseJsonBody(response).catch(() => ({}));
-    const message =
-      body && typeof body === "object" && "message" in body
-        ? String((body as { message: unknown }).message)
-        : "Erro ao baixar arquivo.";
-    throw new ApiError(response.status, message);
+    throw new ApiError(
+      response.status,
+      apiErrorMessage(body, "Erro ao baixar arquivo."),
+    );
   }
 
   const url = URL.createObjectURL(await response.blob());
@@ -97,13 +141,13 @@ export async function apiUpload<T>(path: string, formData: FormData): Promise<T>
     body: formData,
   });
 
+  if (response.status === 401) {
+    throw sessionExpired();
+  }
+
   if (!response.ok) {
     const body: unknown = await parseJsonBody(response).catch(() => ({}));
-    const message =
-      body && typeof body === "object" && "message" in body
-        ? String((body as { message: unknown }).message)
-        : "Erro na requisição.";
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, apiErrorMessage(body, "Erro na requisição."));
   }
 
   return parseJsonBody<T>(response);

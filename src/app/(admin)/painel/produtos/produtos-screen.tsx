@@ -34,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { apiFetch, apiUpload, ApiError } from "@/lib/api-client";
+import { apiFetch, apiUpload, alertApiError, ApiError } from "@/lib/api-client";
 import { formatSecondaryCodes } from "@/lib/product-code";import { cn } from "@/lib/utils";
 import { searchCategories, searchSubcategories } from "@/lib/search-options";
 import {
@@ -277,7 +277,7 @@ export function ProdutosScreen() {
       await apiFetch(`/products/${product.id}`, { method: "DELETE" });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao inativar.");
+      alertApiError(error, "Erro ao inativar.");
     }
   }
 

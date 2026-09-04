@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import type { PermissionCatalogItem, RoleListItem } from "./types";
 
 // Aba "Permissões" (design handoff §9): criar papel novo (nome, validação de
@@ -80,7 +80,7 @@ export function PermissoesTab() {
       await apiFetch(`/roles/${role.id}`, { method: "DELETE" });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao apagar.");
+      alertApiError(error, "Erro ao apagar.");
     }
   }
 

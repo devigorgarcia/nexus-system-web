@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import type { FiscalConfig, FiscalDocument, TaxRegime } from "./types";
 
 const REGIME_LABEL: Record<TaxRegime, string> = {
@@ -90,7 +90,7 @@ export function FiscalScreen() {
       await apiFetch(`/fiscal/documents/${id}/retry`, { method: "POST" });
       await reload();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao reemitir.");
+      alertApiError(err, "Erro ao reemitir.");
     }
   }
 

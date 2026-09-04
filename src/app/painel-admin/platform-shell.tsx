@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { ReactNode } from "react";
+import { SessionExpiredDialog } from "@/components/session-expired-dialog";
 
 type PlatformShellProps = {
   user: { name: string; email: string };
@@ -77,6 +78,7 @@ export function PlatformShell({ user, children }: PlatformShellProps) {
       </nav>
 
       <main className="flex-1">{children}</main>
+      <SessionExpiredDialog />
     </div>
   );
 }

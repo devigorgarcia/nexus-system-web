@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError } from "@/lib/api-client";
 import type { ReceivablesPage } from "./types";
 
 function formatCurrency(value: string | number) {
@@ -50,11 +50,7 @@ export function ContasAReceberScreen() {
       await apiFetch(`/accounts-receivable/${id}/receive`, { method: "POST" });
       await reload();
     } catch (error) {
-      alert(
-        error instanceof ApiError
-          ? error.message
-          : "Erro ao confirmar recebimento.",
-      );
+      alertApiError(error, "Erro ao confirmar recebimento.");
     }
   }
 

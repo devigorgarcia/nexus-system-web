@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import type { CustomerListItem } from "./types";
 
 interface FormState {
@@ -118,7 +118,7 @@ export function ClientesScreen() {
       }
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao atualizar.");
+      alertApiError(error, "Erro ao atualizar.");
     }
   }
 

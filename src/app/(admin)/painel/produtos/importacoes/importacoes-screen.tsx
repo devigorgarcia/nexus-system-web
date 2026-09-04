@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiDownload, apiFetch, apiUpload, ApiError } from "@/lib/api-client";
+import { apiDownload, apiFetch, apiUpload, alertApiError, ApiError } from "@/lib/api-client";
 import { searchCategories } from "@/lib/search-options";
 import type { CategoryListItem } from "../categorias/types";
 import { useHasModule } from "@/lib/modules-context";
@@ -143,9 +143,7 @@ export function ImportacoesScreen() {
           : "modelo-importacao-produtos.csv",
       );
     } catch (error) {
-      alert(
-        error instanceof ApiError ? error.message : "Erro ao baixar modelo.",
-      );
+      alertApiError(error, "Erro ao baixar modelo.");
     } finally {
       setDownloadingTemplate(false);
     }
@@ -215,7 +213,7 @@ export function ImportacoesScreen() {
       if (reviewItem?.id === item.id) setReviewItem(null);
       await reloadPending();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao rejeitar.");
+      alertApiError(error, "Erro ao rejeitar.");
     }
   }
 

@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import { searchCategories } from "@/lib/search-options";
 import type { CategoryListItem } from "../categorias/types";
 import type { SubcategoryListItem } from "./types";
@@ -142,7 +142,7 @@ export function SubcategoriasScreen() {
       }
       await reloadSubcategories();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao atualizar.");
+      alertApiError(error, "Erro ao atualizar.");
     }
   }
 

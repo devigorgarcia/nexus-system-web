@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import { searchProducts } from "@/lib/search-options";
 import type { PromotionItem, PromotionsPage, PromotionStatus } from "./types";
 
@@ -160,7 +160,7 @@ export function PromocoesScreen() {
       await apiFetch(`/promotions/${promotion.id}`, { method: "DELETE" });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao encerrar.");
+      alertApiError(error, "Erro ao encerrar.");
     }
   }
 

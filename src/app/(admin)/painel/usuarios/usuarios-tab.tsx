@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import type { RoleListItem, UserListItem } from "./types";
 
 interface UserFormState {
@@ -145,7 +145,7 @@ export function UsuariosTab({ createRequest = 0 }: { createRequest?: number }) {
     } catch (error) {
       // Ex.: tentar desativar a própria conta — API rejeita com 400 e
       // mensagem clara, exibida aqui mesmo sem dialog nenhum.
-      alert(error instanceof ApiError ? error.message : "Erro ao atualizar.");
+      alertApiError(error, "Erro ao atualizar.");
     }
   }
 
@@ -157,7 +157,7 @@ export function UsuariosTab({ createRequest = 0 }: { createRequest?: number }) {
       await apiFetch(`/users/${user.id}`, { method: "DELETE" });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao apagar.");
+      alertApiError(error, "Erro ao apagar.");
     }
   }
 

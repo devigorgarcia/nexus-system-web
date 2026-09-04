@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
 import type { AccountPayable, PayablesPage } from "./types";
 
 function formatCurrency(value: string) {
@@ -92,7 +92,7 @@ export function ContasAPagarScreen() {
       });
       await reload();
     } catch (error) {
-      alert(error instanceof ApiError ? error.message : "Erro ao dar baixa.");
+      alertApiError(error, "Erro ao dar baixa.");
     }
   }
 

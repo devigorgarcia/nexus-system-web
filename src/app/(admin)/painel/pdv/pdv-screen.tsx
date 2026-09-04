@@ -304,10 +304,13 @@ export function PdvScreen({
       />
 
       <PageBody className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
-      <div>
-        <PageToolbar className="flex-col items-stretch sm:flex-col">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative min-w-0 flex-1">
+      <div className="min-w-0 w-full">
+        {/* `sm:items-stretch` precisa cancelar o `sm:items-center` do
+            PageToolbar — senão no desktop os filhos encolhem e ficam
+            centralizados no card. */}
+        <PageToolbar className="w-full flex-col items-stretch sm:flex-col sm:flex-nowrap sm:items-stretch">
+          <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative min-w-0 w-full sm:flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome ou bipar código…"
@@ -316,11 +319,11 @@ export function PdvScreen({
                   setShowTopProducts(false);
                   setQuery(e.target.value);
                 }}
-                className="h-11 pl-9"
+                className="h-11 w-full pl-9"
               />
             </div>
             <SearchableSelect
-              className="h-11 w-full sm:w-44"
+              className="h-11 w-full shrink-0 sm:w-52"
               aria-label="Filtrar por categoria"
               value={categoryFilter}
               valueLabel={categoryFilterLabel}
@@ -335,7 +338,7 @@ export function PdvScreen({
             <Button
               type="button"
               variant={showTopProducts ? "default" : "outline"}
-              className="h-11"
+              className="h-11 shrink-0"
               onClick={() => {
                 setQuery("");
                 setShowTopProducts((prev) => !prev);
@@ -347,7 +350,7 @@ export function PdvScreen({
           </div>
 
           {showTopProducts && (
-            <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
+            <div className="flex w-full gap-1 rounded-lg bg-muted p-1">
               {(["dia", "semana", "mes"] as const).map((period) => (
                 <Button
                   key={period}

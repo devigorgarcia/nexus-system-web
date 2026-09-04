@@ -13,6 +13,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { EnabledModulesProvider } from "@/lib/modules-context";
+import { SessionExpiredDialog } from "@/components/session-expired-dialog";
 import { groupNavSections, type NavSection } from "./nav-sections";
 
 type AdminShellProps = {
@@ -209,6 +210,7 @@ export function AdminShell({
         </main>
       </div>
     </div>
+    <SessionExpiredDialog />
     </EnabledModulesProvider>
   );
 }

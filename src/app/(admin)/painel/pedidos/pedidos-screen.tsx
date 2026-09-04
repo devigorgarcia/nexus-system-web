@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PreviewCard } from "@base-ui/react/preview-card";
+import { List } from "lucide-react";
 import { PageBody } from "@/components/page-body";
 import { PageHeader } from "@/components/page-header";
 import { PageToolbar } from "@/components/page-toolbar";
@@ -36,10 +38,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import {
+  cardBrandLabel,
+  chargeToReceive,
+  installmentFeeLabel,
+  interestFreeLabel,
+  passesFeeToCustomer,
+  totalFeePercent,
+} from "@/lib/card-machine";
+import { useHasModule } from "@/lib/modules-context";
+import type { CardMachine } from "../maquininha/types";
 import type {
   ConfirmPaymentResult,
   PaymentMethod,
   SaleItemRecord,
+  SaleItemView,
   SalesPage,
 } from "./types";
 
@@ -60,12 +73,17 @@ function saleTotal(sale: SaleItemRecord): number {
   return sale.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
 }
 
-// Espelho client-side de `SalesService.installmentSurchargeRate()` — só pra
-// mostrar o acréscimo "calculado e devolvido antes da confirmação final"
-// (PRD §4.13) ANTES de confirmar; o valor final autoritativo sempre vem do
-// backend na resposta de `confirm-payment`, nunca deste cálculo local.
-function surchargeRate(installments: number): number {
-  return installments <= 2 ? 0 : 0.03 * installments;
+function chargedForMachine(
+  base: number,
+  machine: CardMachine | null,
+  kind: "debit" | number,
+): number {
+  if (!machine) return base;
+  const percent = totalFeePercent(machine, kind);
+  if (passesFeeToCustomer(machine, kind)) {
+    return chargeToReceive(base, percent).charge;
+  }
+  return base;
 }
 
 const PAYMENT_LABELS: Record<PaymentMethod, string> = {
@@ -75,7 +93,71 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   PIX: "PIX",
 };
 
+function SaleItemsPreview({
+  items,
+  total,
+}: {
+  items: SaleItemView[];
+  total: number;
+}) {
+  return (
+    <div className="flex items-start gap-1.5">
+      <div className="flex max-w-52 flex-col gap-0.5 text-xs">
+        {items.slice(0, 3).map((item) => (
+          <span key={item.id} className="truncate">
+            {item.quantity}× {item.product.name}
+          </span>
+        ))}
+        {items.length > 3 && (
+          <span className="text-muted-foreground">
+            +{items.length - 3} mais…
+          </span>
+        )}
+      </div>
+      <PreviewCard.Root>
+        <PreviewCard.Trigger
+          delay={120}
+          closeDelay={80}
+          render={
+            <button
+              type="button"
+              aria-label="Ver todos os itens do pedido"
+              className="mt-0.5 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            />
+          }
+        >
+          <List className="size-3.5" />
+        </PreviewCard.Trigger>
+        <PreviewCard.Portal>
+          <PreviewCard.Positioner side="right" sideOffset={8} className="z-50">
+            <PreviewCard.Popup className="w-72 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-md outline-none">
+              <p className="mb-2 text-xs font-semibold">Itens do pedido</p>
+              <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto text-xs">
+                {items.map((item) => (
+                  <li key={item.id} className="flex justify-between gap-3">
+                    <span className="min-w-0">
+                      {item.quantity}× {item.product.name}
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatCurrency(Number(item.subtotal))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex justify-between border-t pt-2 text-xs font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">{formatCurrency(total)}</span>
+              </div>
+            </PreviewCard.Popup>
+          </PreviewCard.Positioner>
+        </PreviewCard.Portal>
+      </PreviewCard.Root>
+    </div>
+  );
+}
+
 export function PedidosScreen() {
+  const hasFinanceiro = useHasModule("financeiro");
   const [salesPage, setSalesPage] = useState<SalesPage | null>(null);
   const [pageNum, setPageNum] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
@@ -86,6 +168,8 @@ export function PedidosScreen() {
   );
   const [cardType, setCardType] = useState<"CREDITO" | "DEBITO">("DEBITO");
   const [installments, setInstallments] = useState(1);
+  const [machines, setMachines] = useState<CardMachine[]>([]);
+  const [cardMachineId, setCardMachineId] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
@@ -121,11 +205,17 @@ export function PedidosScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageNum, statusFilter]);
 
+  useEffect(() => {
+    if (!hasFinanceiro) return;
+    void apiFetch<CardMachine[]>("/card-machine").then(setMachines);
+  }, [hasFinanceiro]);
+
   function openCharge(sale: SaleItemRecord) {
     setChargeSale(sale);
     setPaymentKind("DINHEIRO");
     setCardType("DEBITO");
     setInstallments(1);
+    setCardMachineId(machines[0]?.id ?? "");
     setConfirmError(null);
   }
 
@@ -147,6 +237,14 @@ export function PedidosScreen() {
       const body: Record<string, unknown> = { paymentMethod };
       if (paymentMethod === "CARTAO_CREDITO") {
         body.installments = installments;
+      }
+      if (
+        hasFinanceiro &&
+        (paymentMethod === "CARTAO_CREDITO" ||
+          paymentMethod === "CARTAO_DEBITO") &&
+        cardMachineId
+      ) {
+        body.cardMachineId = cardMachineId;
       }
       const result = await apiFetch<ConfirmPaymentResult>(
         `/sales/${chargeSale.id}/confirm-payment`,
@@ -226,7 +324,9 @@ export function PedidosScreen() {
               <TableCell className="font-mono text-xs">
                 {sale.id.slice(0, 8)}
               </TableCell>
-              <TableCell>{sale.items.length}</TableCell>
+              <TableCell>
+                <SaleItemsPreview items={sale.items} total={saleTotal(sale)} />
+              </TableCell>
               <TableCell>{formatCurrency(saleTotal(sale))}</TableCell>
               <TableCell>{sale.customer?.name ?? "—"}</TableCell>
               <TableCell>{sale.vendedor.name}</TableCell>
@@ -333,6 +433,40 @@ export function PedidosScreen() {
                 </div>
               </div>
 
+              {paymentKind === "CARTAO" && hasFinanceiro && machines.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium">Maquininha</p>
+                  <Select
+                    value={cardMachineId || undefined}
+                    onValueChange={(value) => setCardMachineId(value ?? "")}
+                  >
+                    <SelectTrigger aria-label="Maquininha">
+                      <SelectValue placeholder="Escolha a máquina">
+                        {(value: string) => {
+                          const machine = machines.find(
+                            (item) => item.id === value,
+                          );
+                          return machine
+                            ? `${machine.name} · ${cardBrandLabel(machine.brand)}`
+                            : "Escolha a máquina";
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {machines.map((machine) => (
+                        <SelectItem key={machine.id} value={machine.id}>
+                          {machine.name}
+                          {" · "}
+                          {cardBrandLabel(machine.brand)}
+                          {" · "}
+                          {interestFreeLabel(machine.creditPlans)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {paymentKind === "CARTAO" && (
                 <div>
                   <p className="mb-2 text-sm font-medium">Tipo de cartão</p>
@@ -372,11 +506,19 @@ export function PedidosScreen() {
                         { length: allowsInstallments ? 12 : 1 },
                         (_, i) => i + 1,
                       ).map((n) => {
-                        const totalN =
-                          chargeTotal * (1 + surchargeRate(n));
+                        const selected =
+                          machines.find((machine) => machine.id === cardMachineId) ??
+                          null;
+                        const totalN = chargedForMachine(
+                          chargeTotal,
+                          hasFinanceiro ? selected : null,
+                          n,
+                        );
                         return (
                           <SelectItem key={n} value={String(n)}>
                             {n}x de {formatCurrency(totalN / n)}
+                            {" · "}
+                            {installmentFeeLabel(selected?.creditPlans, n)}
                           </SelectItem>
                         );
                       })}
@@ -387,17 +529,21 @@ export function PedidosScreen() {
                       Parcelamento só é permitido pra venda acima de R$100,00.
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {installments}x de{" "}
-                    {formatCurrency(
-                      (chargeTotal * (1 + surchargeRate(installments))) /
-                        installments,
-                    )}
-                    {" — total "}
-                    {formatCurrency(
-                      chargeTotal * (1 + surchargeRate(installments)),
-                    )}
-                  </p>
+                  {hasFinanceiro && cardMachineId && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {(() => {
+                        const selected =
+                          machines.find((machine) => machine.id === cardMachineId) ??
+                          null;
+                        const totalN = chargedForMachine(
+                          chargeTotal,
+                          selected,
+                          installments,
+                        );
+                        return `${installments}x de ${formatCurrency(totalN / installments)} — total ${formatCurrency(totalN)} (${installmentFeeLabel(selected?.creditPlans, installments)})`;
+                      })()}
+                    </p>
+                  )}
                 </div>
               )}
 
