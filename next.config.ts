@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+  // Build standalone (server.js + node_modules mínimos) usado pela imagem
+  // Docker de produção (T7.4, infra/) — não afeta `next dev`.
+  output: "standalone",
 };
 
 export default nextConfig;
