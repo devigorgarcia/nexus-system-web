@@ -204,7 +204,7 @@ export function ProdutosScreen() {
       categoryName: product.category?.name ?? "",
       subcategoryId: product.subcategoryId ?? "",
       subcategoryName: product.subcategory?.name ?? "",
-      minStock: String(product.minStock),
+      minStock: String(product.minStock ?? ""),
       storageInstructions: product.storageInstructions ?? "",
       unitType: product.unitType,
       pricePerUnit: product.pricePerUnit ?? "",

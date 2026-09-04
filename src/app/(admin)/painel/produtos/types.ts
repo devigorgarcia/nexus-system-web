@@ -17,11 +17,12 @@ export interface ProductListItem {
   category: { id: string; name: string } | null;
   subcategoryId: string | null;
   subcategory: { id: string; name: string } | null;
-  minStock: number;
+  minStock?: number;
   // String, não number (T4.11) — `Product.stock` virou `Decimal` no backend
   // (produto vendido por peso/metro/volume aceita saldo fracionário), mesmo
-  // padrão de `salePrice`/`costPrice` acima.
-  stock: string;
+  // padrão de `salePrice`/`costPrice` acima. Ausentes se o módulo estoque
+  // estiver desligado.
+  stock?: string;
   storageInstructions: string | null;
   unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
   pricePerUnit: string | null;
