@@ -18,7 +18,8 @@ const newsreader = Newsreader({
 
 export const metadata: Metadata = {
   title: "Nexus",
-  description: "Painel administrativo — PDV, estoque, financeiro",
+  description:
+    "Venda no balcão, controle o estoque e feche o caixa no mesmo sistema.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

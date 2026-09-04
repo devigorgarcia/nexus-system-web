@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, type ReactNode } from "react";
 import { Menu } from "lucide-react";
+import { NexusMark } from "@/components/nexus-mark";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -43,9 +44,7 @@ function Brand({
       onClick={onNavigate}
       className="mb-4 flex items-center gap-2.5 border-b border-sidebar-border px-6 pb-6"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-[15px]">
-        P
-      </span>
+      <NexusMark className="h-8 w-8 shrink-0" />
       <span className="font-heading text-[15px]">Nexus</span>
     </Link>
   );

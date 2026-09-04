@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { ReactNode } from "react";
+import { NexusMark } from "@/components/nexus-mark";
 import { SessionExpiredDialog } from "@/components/session-expired-dialog";
 
 type PlatformShellProps = {
@@ -30,9 +31,7 @@ export function PlatformShell({ user, children }: PlatformShellProps) {
     <div className="flex min-h-screen flex-col">
       <header className="flex flex-wrap items-center justify-between gap-3 bg-sidebar px-4 py-3.5 text-sidebar-foreground sm:px-6">
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary font-heading text-[15px]">
-            P
-          </span>
+          <NexusMark className="h-8 w-8 shrink-0" />
           <div className="flex flex-col leading-tight">
             <span className="font-heading text-[15px]">Nexus</span>
             <span className="text-[11px] text-sidebar-foreground/60">

@@ -4,6 +4,7 @@ import { getSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
+import { NexusMark } from "@/components/nexus-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,16 +57,29 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       <div className="hidden w-1/2 flex-col justify-center bg-sidebar px-16 text-sidebar-foreground md:flex">
-        <span className="font-heading text-4xl italic">Nexus</span>
-        <p className="mt-4 max-w-sm text-sm text-sidebar-foreground/70">
-          Painel administrativo — PDV, estoque e financeiro num só lugar.
-        </p>
+        <div className="max-w-md">
+          <div className="flex items-center gap-3">
+            <NexusMark className="h-12 w-12 shrink-0" />
+            <span className="font-heading text-4xl italic">Nexus</span>
+          </div>
+          <p className="mt-10 font-heading text-[2.15rem] leading-[1.15]">
+            Venda no balcão. Controle no estoque. Paz no caixa.
+          </p>
+          <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-sidebar-foreground/70">
+            O sistema da loja que atende o dia inteiro sem trocar de tela e sem
+            planilha no fim do expediente.
+          </p>
+        </div>
       </div>
       <div className="flex w-full items-center justify-center bg-background px-6 md:w-1/2">
         <form
           className="flex w-80 flex-col gap-4"
           onSubmit={(event: FormEvent<HTMLFormElement>) => void handleSubmit(event)}
         >
+          <div className="mb-1 flex items-center gap-2 md:hidden">
+            <NexusMark className="h-8 w-8" />
+            <span className="font-heading text-2xl italic">Nexus</span>
+          </div>
           <h1 className="mb-2 font-heading text-2xl">Entrar</h1>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="usuario">Usuário</Label>
