@@ -47,6 +47,7 @@ import {
   totalFeePercent,
 } from "@/lib/card-machine";
 import { useHasModule } from "@/lib/modules-context";
+import { formatQuantity } from "@/lib/unit-type";
 import type { CardMachine } from "../maquininha/types";
 import type {
   ConfirmPaymentResult,
@@ -71,6 +72,10 @@ function statusBadgeClass(status: "PENDENTE" | "PAGO") {
 
 function saleTotal(sale: SaleItemRecord): number {
   return sale.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
+}
+
+function formatSaleLine(item: SaleItemView): string {
+  return `${formatQuantity(item.quantity, item.product.unitType)} × ${item.product.name}`;
 }
 
 function chargedForMachine(
@@ -105,7 +110,7 @@ function SaleItemsPreview({
       <div className="flex max-w-52 flex-col gap-0.5 text-xs">
         {items.slice(0, 3).map((item) => (
           <span key={item.id} className="truncate">
-            {item.quantity}× {item.product.name}
+            {formatSaleLine(item)}
           </span>
         ))}
         {items.length > 3 && (
@@ -136,7 +141,7 @@ function SaleItemsPreview({
                 {items.map((item) => (
                   <li key={item.id} className="flex justify-between gap-3">
                     <span className="min-w-0">
-                      {item.quantity}× {item.product.name}
+                      {formatSaleLine(item)}
                     </span>
                     <span className="shrink-0 tabular-nums">
                       {formatCurrency(Number(item.subtotal))}
@@ -404,9 +409,7 @@ export function PedidosScreen() {
               <ul className="flex flex-col gap-1 text-sm">
                 {chargeSale.items.map((item) => (
                   <li key={item.id} className="flex justify-between">
-                    <span>
-                      {item.product.name} × {item.quantity}
-                    </span>
+                    <span>{formatSaleLine(item)}</span>
                     <span>{formatCurrency(Number(item.subtotal))}</span>
                   </li>
                 ))}
@@ -496,12 +499,26 @@ export function PedidosScreen() {
                     value={String(installments)}
                     onValueChange={(value) => setInstallments(Number(value))}
                   >
-                    <SelectTrigger aria-label="Número de parcelas">
+                    <SelectTrigger
+                      aria-label="Número de parcelas"
+                      className="h-auto min-h-10 w-full *:data-[slot=select-value]:line-clamp-none"
+                    >
                       <SelectValue>
-                        {(value: string) => `${value}x`}
+                        {(value: string) => {
+                          const n = Number(value);
+                          const selected =
+                            machines.find((machine) => machine.id === cardMachineId) ??
+                            null;
+                          const totalN = chargedForMachine(
+                            chargeTotal,
+                            hasFinanceiro ? selected : null,
+                            n,
+                          );
+                          return `${n}x de ${formatCurrency(totalN / n)} · ${installmentFeeLabel(selected?.creditPlans, n)}`;
+                        }}
                       </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="w-(--anchor-width) min-w-64">
                       {Array.from(
                         { length: allowsInstallments ? 12 : 1 },
                         (_, i) => i + 1,
@@ -582,7 +599,7 @@ export function PedidosScreen() {
                     {receipt.items.map((item) => (
                       <div key={item.id} className="flex justify-between">
                         <span>
-                          {item.product.name} × {item.quantity}
+                          {formatSaleLine(item)}
                         </span>
                         <span>{formatCurrency(Number(item.subtotal))}</span>
                       </div>
