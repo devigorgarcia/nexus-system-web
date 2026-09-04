@@ -5,6 +5,10 @@
 export interface ProductListItem {
   id: string;
   name: string;
+  // SKU interno sequencial (sempre presente em produto criado depois de
+  // 2026-09-04; backfill cobriu os antigos) e EAN do fabricante, opcional.
+  sku: string | null;
+  barcode: string | null;
   description: string | null;
   imageUrl: string | null;
   salePrice: string;
@@ -22,6 +26,10 @@ export interface ProductListItem {
   unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
   pricePerUnit: string | null;
   active: boolean;
+  // Códigos de fornecedor (SupplierProductLink, T3.8) — um por fornecedor
+  // que já importou planilha com esse produto; vazio se nunca veio de
+  // importação. Exibido nas listagens (2026-09-04).
+  supplierProductLinks: { supplierName: string; supplierCode: string }[];
   createdAt: string;
   updatedAt: string;
 }

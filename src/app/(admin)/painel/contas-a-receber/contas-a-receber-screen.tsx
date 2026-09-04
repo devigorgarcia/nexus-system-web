@@ -16,7 +16,7 @@ import {
 import { apiFetch, ApiError } from "@/lib/api-client";
 import type { ReceivablesPage } from "./types";
 
-function formatCurrency(value: string) {
+function formatCurrency(value: string | number) {
   return Number(value).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",

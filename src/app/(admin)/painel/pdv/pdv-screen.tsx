@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, Star, X } from "lucide-react";
 import { PageBody } from "@/components/page-body";
 import { PageHeader } from "@/components/page-header";
@@ -23,10 +23,17 @@ import type {
 } from "./types";
 
 const SEARCH_DEBOUNCE_MS = 350;
+// Leitor de código de barras emula teclado: rajada de teclas com gap
+// <~30ms e Enter no final. Gap maior que isso = digitação humana, reseta o
+// buffer. Mínimo de 4 chars evita capturar Enter solto na tela.
+const SCAN_KEY_GAP_MS = 50;
+const SCAN_MIN_LENGTH = 4;
 
 interface GridItem {
   id: string;
   name: string;
+  sku?: string | null;
+  barcode?: string | null;
   imageUrl: string | null;
   unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
   regularPrice: string;
@@ -38,6 +45,8 @@ function fromSearchResult(item: SearchResultItem): GridItem {
   return {
     id: item.id,
     name: item.name,
+    sku: item.sku,
+    barcode: item.barcode,
     imageUrl: item.imageUrl,
     unitType: item.unitType,
     regularPrice: item.regularPrice,
@@ -129,8 +138,67 @@ export function PdvScreen({
     if (categoryFilter) params.set("categoryId", categoryFilter);
     void apiFetch<SearchResultItem[]>(
       `/products/search?${params.toString()}`,
-    ).then(setSearchResults);
+    ).then((items) => {
+      // Bip de leitor ou código digitado completo (2026-09-04): match exato
+      // de SKU/EAN cai direto no carrinho, sem clique — fluxo de caixa.
+      const typed = debouncedQuery.trim().toLowerCase();
+      const exact = items.filter(
+        (item) =>
+          item.barcode === debouncedQuery.trim() ||
+          item.sku?.toLowerCase() === typed,
+      );
+      if (exact.length === 1) {
+        addToCart(fromSearchResult(exact[0]));
+        setQuery("");
+        setSearchResults([]);
+        setShowTopProducts(true);
+        return;
+      }
+      setSearchResults(items);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, categoryFilter]);
+
+  // Captura global do bip (2026-09-04): funciona mesmo com o foco fora do
+  // campo de busca (ex.: depois de mexer no carrinho). Se o foco está num
+  // campo editável, o código vai pro campo e o fluxo normal resolve — o
+  // auto-add acima pega do mesmo jeito.
+  const scanBuffer = useRef({ text: "", lastKeyAt: 0 });
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const isEditable =
+        target !== null &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (isEditable) return;
+
+      const buffer = scanBuffer.current;
+      const now = Date.now();
+      if (now - buffer.lastKeyAt > SCAN_KEY_GAP_MS) buffer.text = "";
+      buffer.lastKeyAt = now;
+
+      if (event.key === "Enter") {
+        const code = buffer.text;
+        buffer.text = "";
+        if (code.length >= SCAN_MIN_LENGTH) {
+          event.preventDefault();
+          // Pula o debounce: o leitor é instantâneo, a busca dispara já.
+          setShowTopProducts(false);
+          setQuery(code);
+          setDebouncedQuery(code);
+        }
+        return;
+      }
+      if (event.key.length === 1) {
+        buffer.text += event.key;
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!showTopProducts) return;
@@ -242,7 +310,7 @@ export function PdvScreen({
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar produto pelo nome..."
+                placeholder="Buscar por nome ou bipar código…"
                 value={query}
                 onChange={(e) => {
                   setShowTopProducts(false);
@@ -328,6 +396,11 @@ export function PdvScreen({
                   <p className="line-clamp-2 text-sm font-medium leading-snug">
                     {item.name}
                   </p>
+                  {item.sku && (
+                    <p className="text-xs text-muted-foreground">
+                      SKU {item.sku}
+                    </p>
+                  )}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {item.onPromotion && (
                       <span className="text-xs text-muted-foreground line-through">

@@ -129,7 +129,9 @@ export function FiscalScreen() {
                 }}
               >
                 <SelectTrigger aria-label="Regime tributário">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: TaxRegime) => REGIME_LABEL[value] ?? value}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {(Object.keys(REGIME_LABEL) as TaxRegime[]).map((key) => (

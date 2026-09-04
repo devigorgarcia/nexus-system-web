@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch, apiUpload, ApiError } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { formatSecondaryCodes } from "@/lib/product-code";import { cn } from "@/lib/utils";
 import { searchCategories, searchSubcategories } from "@/lib/search-options";
 import {
   UNIT_TYPE_LABELS,
@@ -54,6 +54,8 @@ const PAGE_SIZE = 10;
 interface ProductFormState {
   id?: string;
   name: string;
+  sku: string;
+  barcode: string;
   description: string;
   imageUrl: string;
   costPrice: string;
@@ -70,6 +72,8 @@ interface ProductFormState {
 
 const EMPTY_FORM: ProductFormState = {
   name: "",
+  sku: "",
+  barcode: "",
   description: "",
   imageUrl: "",
   costPrice: "",
@@ -187,6 +191,8 @@ export function ProdutosScreen() {
     setForm({
       id: product.id,
       name: product.name,
+      sku: product.sku ?? "",
+      barcode: product.barcode ?? "",
       description: product.description ?? "",
       imageUrl: product.imageUrl ?? "",
       costPrice: product.costPrice ?? "",
@@ -213,6 +219,10 @@ export function ProdutosScreen() {
     try {
       const body: Record<string, unknown> = {
         name: form.name,
+        // Vazio = não manda: no create a API gera o SKU sequencial; no
+        // update, campo omitido não é tocado.
+        sku: form.sku.trim() || undefined,
+        barcode: form.barcode.trim() || undefined,
         description: form.description || undefined,
         imageUrl: form.imageUrl || undefined,
         costPrice: form.costPrice,
@@ -386,6 +396,7 @@ export function ProdutosScreen() {
         <TableHeader>
           <TableRow>
             <TableHead>Produto</TableHead>
+            <TableHead>SKU</TableHead>
             <TableHead>Categoria</TableHead>
             <TableHead>Custo</TableHead>
             <TableHead>Venda</TableHead>
@@ -397,7 +408,7 @@ export function ProdutosScreen() {
           {!loading && productsPage?.items.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={hasEstoque ? 6 : 5}
+                colSpan={hasEstoque ? 7 : 6}
                 className="text-center text-muted-foreground"
               >
                 Nenhum produto encontrado.
@@ -422,6 +433,14 @@ export function ProdutosScreen() {
                   </div>
                   <span className="font-medium">{product.name}</span>
                 </div>
+              </TableCell>
+              <TableCell className="whitespace-nowrap">
+                <div>{product.sku ?? "—"}</div>
+                {formatSecondaryCodes(product) && (
+                  <div className="text-xs text-muted-foreground">
+                    {formatSecondaryCodes(product)}
+                  </div>
+                )}
               </TableCell>
               <TableCell>{product.category?.name ?? "Sem categoria"}</TableCell>
               <TableCell>
@@ -503,6 +522,37 @@ export function ProdutosScreen() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="product-sku">SKU (código interno)</Label>
+                <Input
+                  id="product-sku"
+                  value={form.sku}
+                  placeholder={form.id ? "" : "Automático"}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, sku: e.target.value }))
+                  }
+                />
+                {!form.id && (
+                  <p className="text-xs text-muted-foreground">
+                    Vazio gera sequencial (00001, 00002…).
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="product-barcode">Código de barras</Label>
+                <Input
+                  id="product-barcode"
+                  value={form.barcode}
+                  placeholder="Bipe ou digite o EAN"
+                  inputMode="numeric"
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, barcode: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-description">Descrição</Label>
               <Textarea
@@ -532,7 +582,11 @@ export function ProdutosScreen() {
                 }
               >
                 <SelectTrigger id="product-unit-type" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: string) =>
+                      UNIT_TYPE_LABELS[value as keyof typeof UNIT_TYPE_LABELS] ??
+                      value}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(UNIT_TYPE_LABELS).map(([value, label]) => (

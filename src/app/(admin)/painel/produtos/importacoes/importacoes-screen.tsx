@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Eye, X } from "lucide-react";
+import { Download, Eye, X } from "lucide-react";
 import { PageBody } from "@/components/page-body";
 import { PageHeader } from "@/components/page-header";
 import { PageToolbar } from "@/components/page-toolbar";
@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiFetch, apiUpload, ApiError } from "@/lib/api-client";
+import { apiDownload, apiFetch, apiUpload, ApiError } from "@/lib/api-client";
 import { searchCategories } from "@/lib/search-options";
 import type { CategoryListItem } from "../categorias/types";
 import { useHasModule } from "@/lib/modules-context";
@@ -65,6 +65,7 @@ export function ImportacoesScreen() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lastSummary, setLastSummary] = useState<ImportSummary | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
 
   const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
   const [pendingPage, setPendingPage] = useState<PendingImportsPage | null>(
@@ -129,6 +130,24 @@ export function ImportacoesScreen() {
       );
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleDownloadTemplate(format: "csv" | "xlsx") {
+    setDownloadingTemplate(true);
+    try {
+      await apiDownload(
+        `/product-imports/template?format=${format}`,
+        format === "xlsx"
+          ? "modelo-importacao-produtos.xlsx"
+          : "modelo-importacao-produtos.csv",
+      );
+    } catch (error) {
+      alert(
+        error instanceof ApiError ? error.message : "Erro ao baixar modelo.",
+      );
+    } finally {
+      setDownloadingTemplate(false);
     }
   }
 
@@ -208,7 +227,7 @@ export function ImportacoesScreen() {
     <div>
       <PageHeader
         title="Importação"
-        description="Planilha de fornecedor e fila de revisão."
+        description="Planilha de fornecedor (CSV ou Excel) e fila de revisão."
       />
 
       <PageBody>
@@ -231,12 +250,12 @@ export function ImportacoesScreen() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="import-file">Arquivo (CSV)</Label>
+              <Label htmlFor="import-file">Arquivo (CSV ou Excel)</Label>
               <input
                 id="import-file"
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 className="text-sm"
               />
             </div>
@@ -244,6 +263,34 @@ export function ImportacoesScreen() {
               {uploading ? "Importando…" : "Importar"}
             </Button>
           </form>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+            <span className="text-sm text-muted-foreground">
+              Modelo com as colunas esperadas (codigo, nome, custo,
+              quantidade, codigo_barras — codigo e codigo_barras são
+              opcionais):
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={downloadingTemplate}
+              onClick={() => void handleDownloadTemplate("xlsx")}
+            >
+              <Download className="size-3.5" />
+              Modelo Excel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={downloadingTemplate}
+              onClick={() => void handleDownloadTemplate("csv")}
+            >
+              <Download className="size-3.5" />
+              Modelo CSV
+            </Button>
+          </div>
 
           {uploadError && (
             <p className="mt-3 text-sm text-destructive" role="alert">
@@ -285,7 +332,14 @@ export function ImportacoesScreen() {
               className="w-full sm:w-48"
               aria-label="Filtrar por tipo de pendência"
             >
-              <SelectValue placeholder="Todos os tipos" />
+              <SelectValue placeholder="Todos os tipos">
+                {(value: string | null) =>
+                  value === "PRODUTO_NOVO"
+                    ? "Produto novo"
+                    : value === "CUSTO_ALTERADO"
+                      ? "Custo alterado"
+                      : "Todos os tipos"}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={TODOS_TIPOS}>Todos os tipos</SelectItem>
@@ -407,6 +461,7 @@ export function ImportacoesScreen() {
               <p className="text-sm text-muted-foreground">
                 Nome do fornecedor: {reviewItem.supplierRawName} · Custo: R${" "}
                 {reviewItem.cost} · Quantidade: {reviewItem.quantity}
+                {reviewItem.barcode ? ` · EAN: ${reviewItem.barcode}` : ""}
               </p>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="review-name">Nome de venda</Label>

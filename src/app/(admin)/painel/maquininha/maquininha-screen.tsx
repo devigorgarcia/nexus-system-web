@@ -21,6 +21,7 @@ import {
   chargeToReceive,
   formatBRL,
   netFromSale,
+  parseRate,
   totalFeePercent,
 } from "@/lib/card-machine";
 import type { CardMachineConfig } from "./types";
@@ -28,12 +29,29 @@ import type { CardMachineConfig } from "./types";
 const EMPTY: CardMachineConfig = {
   id: null,
   acquirerName: "InterPag",
-  anticipationRate: "1.90",
-  debitRate: "1.35",
-  credit1xRate: "1.46",
-  credit2to6Rate: "2.98",
-  credit7to12Rate: "2.45",
+  anticipationRate: "1,90",
+  debitRate: "1,35",
+  credit1xRate: "1,46",
+  credit2to6Rate: "2,98",
+  credit7to12Rate: "2,45",
 };
+
+/** API devolve `"1.90"` — exibe `"1,90"` (pt-BR). */
+function rateToDisplay(value: string): string {
+  return value.replace(".", ",");
+}
+
+/** Volta pro formato da API (`"1,90"` → `"1.90"`). */
+function rateToApi(value: string): string {
+  return value.replace(",", ".");
+}
+
+function formatPercent(value: number): string {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 export function MaquininhaScreen() {
   const [form, setForm] = useState<CardMachineConfig>(EMPTY);
@@ -45,7 +63,16 @@ export function MaquininhaScreen() {
   const [kind, setKind] = useState<"debit" | string>("1");
 
   useEffect(() => {
-    void apiFetch<CardMachineConfig>("/card-machine").then(setForm);
+    void apiFetch<CardMachineConfig>("/card-machine").then((config) =>
+      setForm({
+        ...config,
+        anticipationRate: rateToDisplay(config.anticipationRate),
+        debitRate: rateToDisplay(config.debitRate),
+        credit1xRate: rateToDisplay(config.credit1xRate),
+        credit2to6Rate: rateToDisplay(config.credit2to6Rate),
+        credit7to12Rate: rateToDisplay(config.credit7to12Rate),
+      }),
+    );
   }, []);
 
   function setRate(field: keyof CardMachineConfig, value: string) {
@@ -61,14 +88,21 @@ export function MaquininhaScreen() {
         method: "PUT",
         body: JSON.stringify({
           acquirerName: form.acquirerName,
-          anticipationRate: form.anticipationRate,
-          debitRate: form.debitRate,
-          credit1xRate: form.credit1xRate,
-          credit2to6Rate: form.credit2to6Rate,
-          credit7to12Rate: form.credit7to12Rate,
+          anticipationRate: rateToApi(form.anticipationRate),
+          debitRate: rateToApi(form.debitRate),
+          credit1xRate: rateToApi(form.credit1xRate),
+          credit2to6Rate: rateToApi(form.credit2to6Rate),
+          credit7to12Rate: rateToApi(form.credit7to12Rate),
         }),
       });
-      setForm(savedConfig);
+      setForm({
+        ...savedConfig,
+        anticipationRate: rateToDisplay(savedConfig.anticipationRate),
+        debitRate: rateToDisplay(savedConfig.debitRate),
+        credit1xRate: rateToDisplay(savedConfig.credit1xRate),
+        credit2to6Rate: rateToDisplay(savedConfig.credit2to6Rate),
+        credit7to12Rate: rateToDisplay(savedConfig.credit7to12Rate),
+      });
       setSaved(true);
     } catch (err) {
       setError(
@@ -180,11 +214,14 @@ export function MaquininhaScreen() {
                 onValueChange={(value) => setMode((value ?? "sale") as "sale" | "net")}
               >
                 <SelectTrigger id="calc-mode">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: "sale" | "net") =>
+                      value === "net" ? "Valor a receber" : "Valor cobrado"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sale">Valor cobrado na maquininha</SelectItem>
-                  <SelectItem value="net">Valor que quero receber</SelectItem>
+                  <SelectItem value="sale">Valor cobrado</SelectItem>
+                  <SelectItem value="net">Valor a receber</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -203,7 +240,10 @@ export function MaquininhaScreen() {
                 onValueChange={(value) => setKind(value ?? "1")}
               >
                 <SelectTrigger id="calc-kind">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: string) =>
+                      value === "debit" ? "Débito" : `Crédito ${value}x`}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="debit">Débito</SelectItem>
@@ -224,14 +264,10 @@ export function MaquininhaScreen() {
               <div>
                 <dt className="text-xs text-muted-foreground">Taxa total</dt>
                 <dd className="text-lg font-medium tabular-nums">
-                  {feePercent.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                  %
+                  {formatPercent(feePercent)}%
                   <span className="ml-1 text-xs font-normal text-muted-foreground">
-                    ({brandRate(form, kindKey).toFixed(2)} +{" "}
-                    {Number(form.anticipationRate).toFixed(2)})
+                    ({formatPercent(brandRate(form, kindKey))} +{" "}
+                    {formatPercent(parseRate(form.anticipationRate))})
                   </span>
                 </dd>
               </div>

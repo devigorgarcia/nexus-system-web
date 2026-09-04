@@ -58,6 +58,33 @@ export async function apiFetch<T>(
   return parseJsonBody<T>(response);
 }
 
+// Download de arquivo gerado na API (ex.: modelo de planilha de importação,
+// 2026-09-04) — fetch com cookie de sessão → blob → clique numa âncora
+// temporária. Não dá pra usar um `<a href>` direto porque a API exige o
+// cookie de sessão e o header CSRF, que só um fetch consegue mandar.
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${API_URL}${path}`, {
+    credentials: "include",
+    headers: { "X-Requested-With": "XMLHttpRequest" },
+  });
+
+  if (!response.ok) {
+    const body: unknown = await parseJsonBody(response).catch(() => ({}));
+    const message =
+      body && typeof body === "object" && "message" in body
+        ? String((body as { message: unknown }).message)
+        : "Erro ao baixar arquivo.";
+    throw new ApiError(response.status, message);
+  }
+
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 // Upload de arquivo (multipart/form-data, T3.8) — variante de `apiFetch` sem
 // `Content-Type` fixo: o browser define o boundary certo sozinho quando o
 // body é `FormData`. Setar `Content-Type: application/json` na mão (como

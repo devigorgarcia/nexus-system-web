@@ -211,7 +211,16 @@ export function PromocoesScreen() {
             className="w-full sm:w-40"
             aria-label="Filtrar por status"
           >
-            <SelectValue placeholder="Todos os status" />
+            <SelectValue placeholder="Todos os status">
+              {(value: string | null) =>
+                value === "vigente"
+                  ? "Vigente"
+                  : value === "futura"
+                    ? "Futura"
+                    : value === "encerrada"
+                      ? "Encerrada"
+                      : "Todos os status"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={TODOS_STATUS}>Todos os status</SelectItem>
@@ -351,7 +360,10 @@ export function PromocoesScreen() {
                 }
               >
                 <SelectTrigger id="promotion-vigency-type" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: string) =>
+                      value === "DIA_SEMANA" ? "Dia da semana" : "Período"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="PERIODO">Período</SelectItem>

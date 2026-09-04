@@ -2,6 +2,10 @@
 export interface SearchResultItem {
   id: string;
   name: string;
+  // SKU/código de barras (2026-09-04) — a busca casa exato nesses campos
+  // além do nome; o PDV usa pra adicionar direto ao carrinho num bip.
+  sku: string | null;
+  barcode: string | null;
   imageUrl: string | null;
   unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
   stock: string;

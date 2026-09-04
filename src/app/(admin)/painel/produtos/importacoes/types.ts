@@ -12,6 +12,9 @@ export interface PendingImportItem {
   status: "PENDENTE" | "CONFIRMADO" | "REJEITADO";
   supplierName: string;
   supplierCode: string | null;
+  // EAN vindo da coluna opcional `codigo_barras` da planilha (2026-09-04) —
+  // gravado em `Product.barcode` na confirmação do produto novo.
+  barcode: string | null;
   supplierRawName: string;
   cost: string;
   quantity: number;

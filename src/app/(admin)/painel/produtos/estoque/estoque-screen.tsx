@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatSecondaryCodes } from "@/lib/product-code";
 import {
   searchCategories,
   searchProducts,
@@ -315,6 +316,7 @@ export function EstoqueScreen() {
         <TableHeader>
           <TableRow>
             <TableHead>Produto</TableHead>
+            <TableHead>SKU</TableHead>
             <TableHead>Categoria</TableHead>
             <TableHead>Estoque</TableHead>
             <TableHead>Mínimo</TableHead>
@@ -326,7 +328,7 @@ export function EstoqueScreen() {
           {balancePage?.items.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={7}
                 className="text-center text-muted-foreground"
               >
                 Nenhum produto encontrado.
@@ -338,6 +340,14 @@ export function EstoqueScreen() {
             return (
               <TableRow key={product.id}>
                 <TableCell>{product.name}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  <div>{product.sku ?? "—"}</div>
+                  {formatSecondaryCodes(product) && (
+                    <div className="text-xs text-muted-foreground">
+                      {formatSecondaryCodes(product)}
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>
                   {product.category?.name ?? "Sem categoria"}
                 </TableCell>
@@ -420,7 +430,14 @@ export function EstoqueScreen() {
             className="w-full sm:w-40"
             aria-label="Filtrar histórico por tipo"
           >
-            <SelectValue placeholder="Todos os tipos" />
+            <SelectValue placeholder="Todos os tipos">
+              {(value: string | null) =>
+                value === "ENTRADA"
+                  ? "Entrada"
+                  : value === "SAIDA"
+                    ? "Saída"
+                    : "Todos os tipos"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={TODOS_TIPOS}>Todos os tipos</SelectItem>
@@ -550,7 +567,10 @@ export function EstoqueScreen() {
                 }
               >
                 <SelectTrigger id="movement-type" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {(value: string) =>
+                      value === "SAIDA" ? "Saída" : "Entrada"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ENTRADA">Entrada</SelectItem>

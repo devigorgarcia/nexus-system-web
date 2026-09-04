@@ -90,6 +90,20 @@ export function PedidosScreen() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const [receipt, setReceipt] = useState<ConfirmPaymentResult | null>(null);
+  const [loadingReceiptId, setLoadingReceiptId] = useState<string | null>(null);
+
+  // Reemissão de cupom (T4.9): pedido pago pode reabrir o cupom a qualquer
+  // momento — os totais vêm prontos do `GET /sales/:id`, nunca recalculados
+  // aqui.
+  async function openReceipt(saleId: string) {
+    setLoadingReceiptId(saleId);
+    try {
+      const data = await apiFetch<ConfirmPaymentResult>(`/sales/${saleId}`);
+      setReceipt(data);
+    } finally {
+      setLoadingReceiptId(null);
+    }
+  }
 
   async function reload() {
     const params = new URLSearchParams({
@@ -174,7 +188,16 @@ export function PedidosScreen() {
             className="w-full sm:w-40"
             aria-label="Filtrar por status"
           >
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder="Status">
+              {(value: string | null) =>
+                value === "PENDENTE"
+                  ? "Pendente"
+                  : value === "PAGO"
+                    ? "Pago"
+                    : value === TODOS_STATUS
+                      ? "Todos"
+                      : "Status"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={TODOS_STATUS}>Todos</SelectItem>
@@ -219,9 +242,18 @@ export function PedidosScreen() {
                 </Badge>
               </TableCell>
               <TableCell>
-                {sale.status === "PENDENTE" && (
+                {sale.status === "PENDENTE" ? (
                   <Button size="sm" onClick={() => openCharge(sale)}>
                     Cobrar
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={loadingReceiptId === sale.id}
+                    onClick={() => openReceipt(sale.id)}
+                  >
+                    {loadingReceiptId === sale.id ? "Abrindo..." : "Cupom"}
                   </Button>
                 )}
               </TableCell>
@@ -331,7 +363,9 @@ export function PedidosScreen() {
                     onValueChange={(value) => setInstallments(Number(value))}
                   >
                     <SelectTrigger aria-label="Número de parcelas">
-                      <SelectValue />
+                      <SelectValue>
+                        {(value: string) => `${value}x`}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {Array.from(
