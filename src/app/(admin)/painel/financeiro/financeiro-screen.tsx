@@ -263,7 +263,7 @@ export function FinanceiroScreen({
             <section className="mt-8">
               <h2 className="font-heading text-xl">Quem está com caixa aberto</h2>
               {overview && overview.registers.length > 0 ? (
-                <div className="mt-2 flex flex-col gap-10">
+                <div className="mt-4 flex flex-col gap-4">
                   {overview.registers.map((register) => (
                     <OpenRegisterCard
                       key={register.id}

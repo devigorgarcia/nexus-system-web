@@ -104,28 +104,30 @@ export function OverviewKpis({ overview }: { overview: CashRegisterOverview }) {
   ];
 
   return (
-    <div className="flex flex-col gap-4 border-y border-border py-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-8 sm:gap-y-4">
-      {figures.map((figure, index) => (
-        <div
-          key={figure.label}
-          className={
-            index === 0
-              ? undefined
-              : "sm:border-l sm:border-border sm:pl-8"
-          }
-        >
-          <p className="text-sm text-muted-foreground">{figure.label}</p>
-          <p
+    <div className="rounded-lg border border-border bg-card px-5 py-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-0">
+        {figures.map((figure, index) => (
+          <div
+            key={figure.label}
             className={
-              figure.emphasize
-                ? "font-heading text-3xl leading-none tabular-nums"
-                : "font-heading text-2xl leading-none tabular-nums"
+              index === 0
+                ? "sm:pr-8"
+                : "sm:border-l sm:border-border sm:px-8"
             }
           >
-            {figure.value}
-          </p>
-        </div>
-      ))}
+            <p className="text-sm text-muted-foreground">{figure.label}</p>
+            <p
+              className={
+                figure.emphasize
+                  ? "font-heading text-3xl leading-none tabular-nums"
+                  : "font-heading text-2xl leading-none tabular-nums"
+              }
+            >
+              {figure.value}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -140,7 +142,7 @@ export function OpenRegisterCard({
   const salesCount = register.salesCount ?? 0;
 
   return (
-    <article className="border-t border-border pt-6">
+    <article className="rounded-lg border border-border bg-card px-5 py-6">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-heading text-2xl leading-none">
@@ -153,43 +155,40 @@ export function OpenRegisterCard({
         <Badge className="bg-success text-success-foreground">aberto</Badge>
       </header>
 
-      <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-        <div>
+      <div className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border sm:grid-cols-3">
+        <div className="bg-card px-4 py-3">
           <p className="text-sm text-muted-foreground">Deve ter na gaveta</p>
-          <p className="font-heading text-4xl leading-none tabular-nums">
+          <p className="mt-1 font-heading text-4xl leading-none tabular-nums">
             {formatCurrency(register.expectedNow)}
           </p>
-          <p className="mt-2 max-w-[22ch] text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             {formatCurrency(register.openingAmount)} de abertura mais{" "}
             {formatCurrency(register.cashSales)} em dinheiro.
           </p>
         </div>
-
-        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border sm:grid-cols-2">
-          <div className="bg-card px-4 py-3">
-            <p className="text-sm text-muted-foreground">Ainda na gaveta</p>
-            <p className="mt-1 font-heading text-2xl leading-none tabular-nums">
-              {formatCurrency(register.cashSales)}
-            </p>
-            <p className="mt-1 text-sm">Dinheiro das vendas</p>
-          </div>
-          <div className="bg-card px-4 py-3">
-            <p className="text-sm text-muted-foreground">Já saiu da gaveta</p>
-            <dl className="mt-1 space-y-1 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt>PIX</dt>
-                <dd className="tabular-nums">
-                  {formatCurrency(register.pixSales ?? "0")}
-                </dd>
-              </div>
-              <div className="flex justify-between gap-4">
-                <dt>Cartão</dt>
-                <dd className="tabular-nums">
-                  {formatCurrency(register.cardSales ?? "0")}
-                </dd>
-              </div>
-            </dl>
-          </div>
+        <div className="bg-card px-4 py-3">
+          <p className="text-sm text-muted-foreground">Ainda na gaveta</p>
+          <p className="mt-1 font-heading text-2xl leading-none tabular-nums">
+            {formatCurrency(register.cashSales)}
+          </p>
+          <p className="mt-1 text-sm">Dinheiro das vendas</p>
+        </div>
+        <div className="bg-card px-4 py-3">
+          <p className="text-sm text-muted-foreground">Já saiu da gaveta</p>
+          <dl className="mt-1 space-y-1 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt>PIX</dt>
+              <dd className="tabular-nums">
+                {formatCurrency(register.pixSales ?? "0")}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>Cartão</dt>
+              <dd className="tabular-nums">
+                {formatCurrency(register.cardSales ?? "0")}
+              </dd>
+            </div>
+          </dl>
         </div>
       </div>
 
@@ -237,22 +236,22 @@ export function MyRegisterPanel({
         <CardContent>
           {current ? (
             <div className="flex flex-col gap-6">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Deve ter na gaveta
-                </p>
-                <p className="font-heading text-4xl leading-none tabular-nums">
-                  {formatCurrency(
-                    Number(current.openingAmount) +
-                      Number(current.cashSales ?? 0),
-                  )}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {formatCurrency(current.openingAmount)} de abertura mais{" "}
-                  {formatCurrency(current.cashSales ?? "0")} em dinheiro.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border sm:grid-cols-3">
+                <div className="bg-card px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    Deve ter na gaveta
+                  </p>
+                  <p className="mt-1 font-heading text-4xl leading-none tabular-nums">
+                    {formatCurrency(
+                      Number(current.openingAmount) +
+                        Number(current.cashSales ?? 0),
+                    )}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {formatCurrency(current.openingAmount)} de abertura mais{" "}
+                    {formatCurrency(current.cashSales ?? "0")} em dinheiro.
+                  </p>
+                </div>
                 <div className="bg-card px-4 py-3">
                   <p className="text-sm text-muted-foreground">
                     Ainda na gaveta
