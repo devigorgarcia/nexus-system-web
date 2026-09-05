@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { PageBody } from "@/components/page-body";
 import { PageHeader } from "@/components/page-header";
 import { PageToolbar } from "@/components/page-toolbar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -33,31 +32,23 @@ import {
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useHasModule } from "@/lib/modules-context";
+import {
+  formatCurrency,
+  MyRegisterPanel,
+  OpenRegisterCard,
+  OverviewKpis,
+  RegisterHistoryTable,
+  RegisterSalesTable,
+} from "./caixa-panels";
 import { CaixaReportTab } from "./caixa-report-tab";
 import type {
   CashRegisterItem,
   CashRegisterOverview,
-  CashRegisterPaymentMethod,
-  CashRegisterSale,
   CashRegistersPage,
   DreReport,
   SalesByEmployeeRow,
   SalesByProductReport,
 } from "./types";
-
-const PAYMENT_LABELS: Record<CashRegisterPaymentMethod, string> = {
-  DINHEIRO: "Dinheiro",
-  CARTAO_CREDITO: "Cartão de crédito",
-  CARTAO_DEBITO: "Cartão de débito",
-  PIX: "PIX",
-};
-
-function formatCurrency(value: string | number) {
-  return Number(value).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -78,7 +69,9 @@ export function FinanceiroScreen({
 }) {
   const hasFinanceiro = useHasModule("financeiro");
   const showTabs = canManageAllRegisters || hasFinanceiro;
-  const [tab, setTab] = useState("caixa");
+  const [tab, setTab] = useState(
+    canManageAllRegisters ? "monitoramento" : "caixa",
+  );
 
   // --- Caixa (T5.1/T5.2) ---
   const [current, setCurrent] = useState<CashRegisterItem | null>(null);
@@ -203,10 +196,10 @@ export function FinanceiroScreen({
         title="Caixa"
         description={
           canManageAllRegisters
-            ? "Abertura, fechamento e relatório de vendas do período."
+            ? "Opere o seu caixa ou acompanhe os caixas abertos da loja."
             : hasFinanceiro
               ? "Caixa do dia, demonstrativo e relatórios de vendas."
-              : "Abertura, fechamento e movimento do caixa do dia."
+              : "Abertura, fechamento e movimento do seu caixa."
         }
       />
 
@@ -215,9 +208,12 @@ export function FinanceiroScreen({
         {showTabs ? (
         <PageToolbar>
           <TabsList className="h-auto w-full flex-wrap justify-start sm:w-fit">
-            <TabsTrigger value="caixa">Caixa</TabsTrigger>
+            <TabsTrigger value="caixa">Meu caixa</TabsTrigger>
             {canManageAllRegisters && (
-              <TabsTrigger value="relatorio">Relatório</TabsTrigger>
+              <>
+                <TabsTrigger value="monitoramento">Monitoramento</TabsTrigger>
+                <TabsTrigger value="relatorio">Relatório</TabsTrigger>
+              </>
             )}
             {hasFinanceiro && (
               <>
@@ -230,234 +226,82 @@ export function FinanceiroScreen({
         ) : null}
 
         <TabsContent value="caixa" className="mt-4">
-          {canManageAllRegisters && overview && (
-            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm text-muted-foreground">
-                    Caixas abertos
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-2xl font-semibold">
-                  {overview.openCount}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm text-muted-foreground">
-                    Soma das aberturas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-2xl font-semibold">
-                  {formatCurrency(overview.openingTotal)}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm text-muted-foreground">
-                    Vendido nos caixas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-2xl font-semibold">
-                  {formatCurrency(overview.salesTotal ?? overview.cashSalesTotal)}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm text-muted-foreground">
-                    Dinheiro na gaveta
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-2xl font-semibold">
-                  {formatCurrency(overview.cashSalesTotal)}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm text-muted-foreground">
-                    Esperado nas gavetas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-2xl font-semibold">
-                  {formatCurrency(overview.expectedTotal)}
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          <MyRegisterPanel
+            current={current}
+            onOpen={() => setOpenDialogOpen(true)}
+            onClose={() => current && openCloseDialog(current.id)}
+          />
 
-          {canManageAllRegisters && overview && overview.registers.length > 0 && (
-            <div className="mb-6">
-              <h2 className="mb-3 font-heading text-lg">Caixas abertos agora</h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {overview.registers.map((register) => (
-                  <Card key={register.id}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <CardTitle className="text-base">
-                        {register.responsavel.name}
-                      </CardTitle>
-                      <Badge className="bg-success text-success-foreground">
-                        aberto
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-1 text-sm">
-                      <p>Abertura: {formatCurrency(register.openingAmount)}</p>
-                      <p>
-                        Vendido: {formatCurrency(register.totalSales ?? "0")}{" "}
-                        ({register.salesCount ?? 0}{" "}
-                        {(register.salesCount ?? 0) === 1
-                          ? "pedido"
-                          : "pedidos"}
-                        )
-                      </p>
-                      <p>Dinheiro: {formatCurrency(register.cashSales)}</p>
-                      <p>
-                        PIX: {formatCurrency(register.pixSales ?? "0")} · Cartão:{" "}
-                        {formatCurrency(register.cardSales ?? "0")}
-                      </p>
-                      <p>Esperado na gaveta: {formatCurrency(register.expectedNow)}</p>
-                      <p className="text-muted-foreground">
-                        Aberto em{" "}
-                        {new Date(register.openedAt).toLocaleString("pt-BR")}
-                      </p>
-                      <RegisterSalesTable sales={register.sales ?? []} />
-                      <Button
-                        className="mt-2 w-fit"
-                        onClick={() => openCloseDialog(register.id)}
-                      >
-                        Fechar este caixa
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Meu caixa</CardTitle>
-                {current && (
-                  <Badge className="bg-success text-success-foreground">aberto</Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                {current ? (
-                  <div className="flex flex-col gap-2 text-sm">
-                    <p>Responsável: {current.responsavel.name}</p>
-                    <p>Abertura: {formatCurrency(current.openingAmount)}</p>
-                    <p>
-                      Vendido: {formatCurrency(current.totalSales ?? "0")}{" "}
-                      ({current.salesCount ?? 0}{" "}
-                      {(current.salesCount ?? 0) === 1 ? "pedido" : "pedidos"})
-                    </p>
-                    <p>
-                      Dinheiro: {formatCurrency(current.cashSales ?? "0")} · PIX:{" "}
-                      {formatCurrency(current.pixSales ?? "0")} · Cartão:{" "}
-                      {formatCurrency(current.cardSales ?? "0")}
-                    </p>
-                    <p>
-                      Aberto em: {new Date(current.openedAt).toLocaleString("pt-BR")}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Todo pedido cobrado neste caixa entra aqui, em qualquer
-                      forma de pagamento. O esperado da gaveta soma só o
-                      dinheiro.
-                    </p>
-                    <Button
-                      className="mt-2 w-fit"
-                      onClick={() => openCloseDialog(current.id)}
-                    >
-                      Fechar meu caixa
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 text-sm">
-                    <p className="text-muted-foreground">
-                      Seu caixa está fechado. Abra o caixa para cobrar pedidos
-                      — cada pagamento fica registrado nesta gaveta.
-                    </p>
-                    <Button className="w-fit" onClick={() => setOpenDialogOpen(true)}>
-                      Abrir meu caixa
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            {current && (
-              <div>
-                <h2 className="mb-3 font-heading text-lg">
-                  Pedidos deste caixa
-                </h2>
-                <RegisterSalesTable sales={current.sales ?? []} />
-              </div>
-            )}
-          </div>
-
-          <h2 className="mt-6 mb-3 font-heading text-lg">Histórico</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Status</TableHead>
-                <TableHead>Responsável</TableHead>
-                <TableHead>Abertura</TableHead>
-                <TableHead>Fechamento</TableHead>
-                <TableHead>Esperado</TableHead>
-                <TableHead>Diferença</TableHead>
-                <TableHead>Aberto em</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {history?.items.map((item) => (
-                <TableRow
-                  key={item.id}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    void apiFetch<CashRegisterItem>(
-                      `/cash-register/${item.id}`,
-                    ).then(setHistoryDetail);
-                  }}
-                >
-                  <TableCell>
-                    <Badge
-                      className={
-                        item.status === "ABERTO"
-                          ? "bg-success text-success-foreground"
-                          : "bg-secondary text-secondary-foreground"
-                      }
-                    >
-                      {item.status === "ABERTO" ? "aberto" : "fechado"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{item.responsavel.name}</TableCell>
-                  <TableCell>{formatCurrency(item.openingAmount)}</TableCell>
-                  <TableCell>
-                    {item.closingAmount ? formatCurrency(item.closingAmount) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    {item.expectedAmount ? formatCurrency(item.expectedAmount) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    {item.difference ? formatCurrency(item.difference) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(item.openedAt).toLocaleString("pt-BR")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {historyDetail && (
-            <div className="mt-4">
-              <h3 className="mb-2 font-heading text-base">
-                Pedidos do caixa de {historyDetail.responsavel.name}
-                {" · "}
-                {new Date(historyDetail.openedAt).toLocaleString("pt-BR")}
-              </h3>
-              <RegisterSalesTable sales={historyDetail.sales ?? []} />
-            </div>
+          {!canManageAllRegisters && (
+            <>
+              <h2 className="mt-6 mb-3 font-heading text-lg">Histórico</h2>
+              <RegisterHistoryTable
+                items={history?.items ?? []}
+                onSelect={(id) => {
+                  void apiFetch<CashRegisterItem>(`/cash-register/${id}`).then(
+                    setHistoryDetail,
+                  );
+                }}
+              />
+              {historyDetail && (
+                <div className="mt-4">
+                  <h3 className="mb-2 font-heading text-base">
+                    Pedidos de {historyDetail.responsavel.name}, abertos em{" "}
+                    {new Date(historyDetail.openedAt).toLocaleString("pt-BR")}
+                  </h3>
+                  <RegisterSalesTable sales={historyDetail.sales ?? []} />
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
+
+        {canManageAllRegisters && (
+          <TabsContent value="monitoramento" className="mt-4">
+            {overview ? <OverviewKpis overview={overview} /> : null}
+
+            <section className="mt-8">
+              <h2 className="font-heading text-xl">Quem está com caixa aberto</h2>
+              {overview && overview.registers.length > 0 ? (
+                <div className="mt-2 flex flex-col gap-10">
+                  {overview.registers.map((register) => (
+                    <OpenRegisterCard
+                      key={register.id}
+                      register={register}
+                      onClose={() => openCloseDialog(register.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Ninguém abriu caixa ainda. Quem for cobrar pedidos abre o
+                  próprio na aba Meu caixa.
+                </p>
+              )}
+            </section>
+
+            <section className="mt-10">
+              <h2 className="mb-3 font-heading text-xl">Fechamentos anteriores</h2>
+              <RegisterHistoryTable
+                items={history?.items ?? []}
+                onSelect={(id) => {
+                  void apiFetch<CashRegisterItem>(`/cash-register/${id}`).then(
+                    setHistoryDetail,
+                  );
+                }}
+              />
+              {historyDetail && (
+                <div className="mt-4">
+                  <h3 className="mb-2 font-heading text-base">
+                    Pedidos de {historyDetail.responsavel.name}, abertos em{" "}
+                    {new Date(historyDetail.openedAt).toLocaleString("pt-BR")}
+                  </h3>
+                  <RegisterSalesTable sales={historyDetail.sales ?? []} />
+                </div>
+              )}
+            </section>
+          </TabsContent>
+        )}
 
         {canManageAllRegisters && (
           <TabsContent value="relatorio" className="mt-4">
@@ -491,7 +335,9 @@ export function FinanceiroScreen({
             </div>
           </PageToolbar>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div
+            className={`grid grid-cols-1 gap-4 ${canSeeCost ? "sm:grid-cols-3" : "sm:grid-cols-1"}`}
+          >
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm text-muted-foreground">Receita</CardTitle>
@@ -500,25 +346,29 @@ export function FinanceiroScreen({
                 {dre ? formatCurrency(dre.revenue) : "—"}
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                {/* CMV, não "despesas" (design handoff mostra um card
-                    genérico de despesas — o sistema não modela despesas
-                    gerais, só custo de produto vendido, T5.5). */}
-                <CardTitle className="text-sm text-muted-foreground">CMV</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">
-                {dre ? formatCurrency(dre.cogs) : "—"}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm text-muted-foreground">Margem</CardTitle>
-              </CardHeader>
-              <CardContent className="text-2xl font-semibold">
-                {dre ? formatCurrency(dre.margin) : "—"}
-              </CardContent>
-            </Card>
+            {canSeeCost && (
+              <Card>
+                <CardHeader>
+                  {/* CMV, não "despesas" (design handoff mostra um card
+                      genérico de despesas — o sistema não modela despesas
+                      gerais, só custo de produto vendido, T5.5). */}
+                  <CardTitle className="text-sm text-muted-foreground">CMV</CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {dre?.cogs != null ? formatCurrency(dre.cogs) : "—"}
+                </CardContent>
+              </Card>
+            )}
+            {canSeeCost && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground">Margem</CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {dre?.margin != null ? formatCurrency(dre.margin) : "—"}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 
@@ -650,48 +500,5 @@ export function FinanceiroScreen({
       </Dialog>
       </PageBody>
     </div>
-  );
-}
-
-function RegisterSalesTable({ sales }: { sales: CashRegisterSale[] }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Pedido</TableHead>
-          <TableHead>Vendedor</TableHead>
-          <TableHead>Pagamento</TableHead>
-          <TableHead>Valor</TableHead>
-          <TableHead>Pago em</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {sales.length ? (
-          sales.map((sale) => (
-            <TableRow key={sale.id}>
-              <TableCell>#{sale.number}</TableCell>
-              <TableCell>{sale.vendedor.name}</TableCell>
-              <TableCell>
-                {sale.paymentMethod
-                  ? PAYMENT_LABELS[sale.paymentMethod]
-                  : "—"}
-              </TableCell>
-              <TableCell>{formatCurrency(sale.total)}</TableCell>
-              <TableCell>
-                {sale.paidAt
-                  ? new Date(sale.paidAt).toLocaleString("pt-BR")
-                  : "—"}
-              </TableCell>
-            </TableRow>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell colSpan={5} className="text-muted-foreground">
-              Nenhum pedido cobrado neste caixa.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
   );
 }

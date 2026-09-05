@@ -16,9 +16,9 @@ export interface PendingImportItem {
   // gravado em `Product.barcode` na confirmação do produto novo.
   barcode: string | null;
   supplierRawName: string;
-  cost: string;
+  cost?: string;
   quantity: number;
-  existingProduct: { id: string; name: string; costPrice: string } | null;
+  existingProduct: { id: string; name: string; costPrice?: string } | null;
   createdAt: string;
   resolvedAt: string | null;
 }

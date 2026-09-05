@@ -78,8 +78,8 @@ export interface DreReport {
   from: string;
   to: string;
   revenue: string;
-  cogs: string;
-  margin: string;
+  cogs?: string;
+  margin?: string;
 }
 
 export type CashSalesReportPeriod =

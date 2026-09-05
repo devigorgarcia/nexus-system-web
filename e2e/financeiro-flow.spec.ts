@@ -7,7 +7,12 @@ import { test, expect } from "@playwright/test";
 // superfície de corrida no PRÓPRIO teste, sem valor extra sobre o que já é
 // coberto pelos testes e2e de backend (test/finance.e2e-spec.ts).
 const ADMIN_EMAIL = "admin@nexus.com.br";
-const ADMIN_PASSWORD = "admin1234";
+const ADMIN_PASSWORD = process.env.DEV_ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+  throw new Error(
+    "DEV_ADMIN_PASSWORD ausente — defina a senha do admin de dev para o e2e.",
+  );
+}
 
 test("Financeiro: abrir caixa → card mostra aberto → fechar caixa → volta a pedir abertura", async ({
   page,

@@ -28,7 +28,11 @@ function money(value: string) {
   });
 }
 
-export function ContabilScreen() {
+export function ContabilScreen({
+  canSeeCost = false,
+}: {
+  canSeeCost?: boolean;
+}) {
   const [from, setFrom] = useState(monthAgoIso);
   const [to, setTo] = useState(todayIso);
   const [summary, setSummary] = useState<AccountingSummary | null>(null);
@@ -62,8 +66,12 @@ export function ContabilScreen() {
       ["de", summary.from],
       ["ate", summary.to],
       ["receita", summary.revenue],
-      ["cmv", summary.cogs],
-      ["margem", summary.margin],
+      ...(canSeeCost
+        ? [
+            ["cmv", summary.cogs ?? ""],
+            ["margem", summary.margin ?? ""],
+          ]
+        : []),
       ["contas_pagar_criadas", summary.payablesCreated],
       ["contas_pagar_pagas", summary.payablesPaid],
       ["contas_pagar_abertas", summary.payablesPending],
@@ -124,8 +132,8 @@ export function ContabilScreen() {
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <Row label="Receita" value={summary?.revenue} />
-            <Row label="CMV" value={summary?.cogs} />
-            <Row label="Margem" value={summary?.margin} />
+            {canSeeCost && <Row label="CMV" value={summary?.cogs} />}
+            {canSeeCost && <Row label="Margem" value={summary?.margin} />}
           </CardContent>
         </Card>
         <Card>

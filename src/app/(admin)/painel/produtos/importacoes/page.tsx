@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
+import { hasPerm } from "@/lib/permissions";
 import { ImportacoesScreen } from "./importacoes-screen";
 
 // Upload de planilha de fornecedor + fila de revisão (T3.8/T3.9) — precisa
@@ -28,5 +29,9 @@ export default async function ImportacoesPage() {
     );
   }
 
-  return <ImportacoesScreen />;
+  return (
+    <ImportacoesScreen
+      canSeeCost={hasPerm(session.user.permissions, "ver:custo-produto")}
+    />
+  );
 }
