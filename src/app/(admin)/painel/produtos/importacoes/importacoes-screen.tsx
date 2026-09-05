@@ -58,7 +58,11 @@ const EMPTY_REVIEW_FORM: ReviewFormState = {
   categoryName: "",
 };
 
-export function ImportacoesScreen() {
+export function ImportacoesScreen({
+  canSeeCost = false,
+}: {
+  canSeeCost?: boolean;
+}) {
   const hasEstoque = useHasModule("estoque");
   const [supplierName, setSupplierName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -353,7 +357,7 @@ export function ImportacoesScreen() {
             <TableHead>Fornecedor</TableHead>
             <TableHead>Item</TableHead>
             <TableHead>Tipo</TableHead>
-            <TableHead>Custo</TableHead>
+            {canSeeCost ? <TableHead>Custo</TableHead> : null}
             <TableHead>Quantidade</TableHead>
             <TableHead className="text-right">Ação</TableHead>
           </TableRow>
@@ -362,7 +366,7 @@ export function ImportacoesScreen() {
           {pendingPage?.items.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={canSeeCost ? 6 : 5}
                 className="text-center text-muted-foreground"
               >
                 Nenhum item pendente.
@@ -382,26 +386,30 @@ export function ImportacoesScreen() {
                   {item.kind === "PRODUTO_NOVO" ? "Produto novo" : "Custo alterado"}
                 </Badge>
               </TableCell>
-              <TableCell>
-                R$ {item.cost}
-                {item.kind === "CUSTO_ALTERADO" && item.existingProduct && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    (era R$ {item.existingProduct.costPrice})
-                  </span>
-                )}
-              </TableCell>
+              {canSeeCost ? (
+                <TableCell>
+                  R$ {item.cost}
+                  {item.kind === "CUSTO_ALTERADO" && item.existingProduct && (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      (era R$ {item.existingProduct.costPrice})
+                    </span>
+                  )}
+                </TableCell>
+              ) : null}
               <TableCell>{item.quantity}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openReview(item)}
-                  >
-                    <Eye className="size-3.5" />
-                    Revisar
-                  </Button>
+                  {(item.kind === "PRODUTO_NOVO" || canSeeCost) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openReview(item)}
+                    >
+                      <Eye className="size-3.5" />
+                      Revisar
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     size="sm"
@@ -457,8 +465,10 @@ export function ImportacoesScreen() {
           {reviewItem?.kind === "PRODUTO_NOVO" ? (
             <div className="flex flex-col gap-3">
               <p className="text-sm text-muted-foreground">
-                Nome do fornecedor: {reviewItem.supplierRawName} · Custo: R${" "}
-                {reviewItem.cost} · Quantidade: {reviewItem.quantity}
+                Nome do fornecedor: {reviewItem.supplierRawName}
+                {canSeeCost ? ` · Custo: R$ ${reviewItem.cost}` : ""}
+                {" "}
+                · Quantidade: {reviewItem.quantity}
                 {reviewItem.barcode ? ` · EAN: ${reviewItem.barcode}` : ""}
               </p>
               <div className="flex flex-col gap-1.5">
@@ -505,9 +515,10 @@ export function ImportacoesScreen() {
           ) : (
             reviewItem && (
               <p className="text-sm">
-                Produto <strong>{reviewItem.existingProduct?.name}</strong>: custo
-                muda de R$ {reviewItem.existingProduct?.costPrice} pra R${" "}
-                {reviewItem.cost}.
+                Produto <strong>{reviewItem.existingProduct?.name}</strong>
+                {canSeeCost
+                  ? `: custo muda de R$ ${reviewItem.existingProduct?.costPrice} pra R$ ${reviewItem.cost}.`
+                  : ": mudança de custo pendente."}
               </p>
             )
           )}

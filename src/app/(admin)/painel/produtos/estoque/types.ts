@@ -3,7 +3,7 @@
 export interface StockSummary {
   itemsCount: number;
   lowStockCount: number;
-  stockValue: number;
+  stockValue?: number;
 }
 
 export interface StockMovementItem {

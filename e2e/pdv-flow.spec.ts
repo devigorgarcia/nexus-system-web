@@ -5,7 +5,12 @@ import { test, expect } from "@playwright/test";
 // intacto) → tela Pedidos → "Cobrar" → escolher forma de pagamento →
 // confirmar → saldo de estoque atualizado na tela sem reload manual.
 const ADMIN_EMAIL = "admin@nexus.com.br";
-const ADMIN_PASSWORD = "admin1234";
+const ADMIN_PASSWORD = process.env.DEV_ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+  throw new Error(
+    "DEV_ADMIN_PASSWORD ausente — defina a senha do admin de dev para o e2e.",
+  );
+}
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/login");

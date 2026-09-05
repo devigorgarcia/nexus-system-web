@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
+import { hasPerm } from "@/lib/permissions";
 import { ContabilScreen } from "./contabil-screen";
 
 export default async function ContabilPage() {
@@ -25,5 +26,9 @@ export default async function ContabilPage() {
     );
   }
 
-  return <ContabilScreen />;
+  return (
+    <ContabilScreen
+      canSeeCost={hasPerm(session.user.permissions, "ver:custo-produto")}
+    />
+  );
 }

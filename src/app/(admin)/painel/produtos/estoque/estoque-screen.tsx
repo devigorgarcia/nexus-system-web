@@ -98,7 +98,11 @@ const EMPTY_MOVEMENT_FORM: MovementFormState = {
   quantity: "",
 };
 
-export function EstoqueScreen() {
+export function EstoqueScreen({
+  canSeeCost = false,
+}: {
+  canSeeCost?: boolean;
+}) {
   const [summary, setSummary] = useState<StockSummary | null>(null);
   const [balancePage, setBalancePage] = useState<ProductsPage | null>(null);
   const [balancePageNum, setBalancePageNum] = useState(1);
@@ -241,7 +245,9 @@ export function EstoqueScreen() {
       />
 
       <PageBody>
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div
+        className={`mb-6 grid grid-cols-1 gap-4 ${canSeeCost ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+      >
         <Card>
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
@@ -262,16 +268,20 @@ export function EstoqueScreen() {
             {summary?.lowStockCount ?? "—"}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm text-muted-foreground">
-              Valor em estoque
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {summary ? formatCurrency(summary.stockValue) : "—"}
-          </CardContent>
-        </Card>
+        {canSeeCost && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm text-muted-foreground">
+                Valor em estoque
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-2xl font-semibold">
+              {summary?.stockValue != null
+                ? formatCurrency(summary.stockValue)
+                : "—"}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <h2 className="mb-3 font-heading text-lg">Saldo por produto</h2>
