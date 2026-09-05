@@ -1,4 +1,19 @@
 // Espelha o `select`/resposta da API (nexus-api/src/finance) — T5.1/T5.3/T5.4/T5.5.
+export type CashRegisterPaymentMethod =
+  | "DINHEIRO"
+  | "CARTAO_CREDITO"
+  | "CARTAO_DEBITO"
+  | "PIX";
+
+export interface CashRegisterSale {
+  id: string;
+  number: number;
+  paymentMethod: CashRegisterPaymentMethod | null;
+  paidAt: string | null;
+  vendedor: { id: string; name: string };
+  total: string;
+}
+
 export interface CashRegisterItem {
   id: string;
   status: "ABERTO" | "FECHADO";
@@ -9,6 +24,12 @@ export interface CashRegisterItem {
   openedAt: string;
   closedAt: string | null;
   responsavel: { id: string; name: string };
+  salesCount?: number;
+  totalSales?: string;
+  cashSales?: string;
+  pixSales?: string;
+  cardSales?: string;
+  sales?: CashRegisterSale[];
 }
 
 export interface CashRegistersPage {
@@ -26,6 +47,7 @@ export interface CashRegisterOverviewItem extends CashRegisterItem {
 export interface CashRegisterOverview {
   openCount: number;
   openingTotal: string;
+  salesTotal?: string;
   cashSalesTotal: string;
   expectedTotal: string;
   registers: CashRegisterOverviewItem[];
