@@ -62,9 +62,10 @@ type StockStatus = "ok" | "baixo" | "crítico";
 function statusFor(product: ProductListItem): StockStatus {
   // `stock` é string (T4.11, Decimal no backend) — sempre comparar como
   // número, nunca com o literal `"0"`/`< minStock` direto na string.
-  const stock = Number(product.stock);
+  const stock = Number(product.stock ?? 0);
+  const minStock = product.minStock ?? 0;
   if (stock === 0) return "crítico";
-  if (stock < product.minStock) return "baixo";
+  if (stock < minStock) return "baixo";
   return "ok";
 }
 
@@ -352,10 +353,10 @@ export function EstoqueScreen() {
                   {product.category?.name ?? "Sem categoria"}
                 </TableCell>
                 <TableCell>
-                  {formatQuantity(product.stock, product.unitType)}
+                  {formatQuantity(product.stock ?? "0", product.unitType)}
                 </TableCell>
                 <TableCell>
-                  {formatQuantity(product.minStock, product.unitType)}
+                  {formatQuantity(product.minStock ?? 0, product.unitType)}
                 </TableCell>
                 <TableCell>
                   <Badge className={statusBadgeClass(status)}>{status}</Badge>
