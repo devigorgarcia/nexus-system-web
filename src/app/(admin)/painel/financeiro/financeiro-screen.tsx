@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useHasModule } from "@/lib/modules-context";
+import { CaixaReportTab } from "./caixa-report-tab";
 import type {
   CashRegisterItem,
   CashRegisterOverview,
@@ -61,10 +62,13 @@ function monthAgoIso() {
 
 export function FinanceiroScreen({
   canManageAllRegisters = false,
+  canSeeCost = false,
 }: {
   canManageAllRegisters?: boolean;
+  canSeeCost?: boolean;
 }) {
   const hasFinanceiro = useHasModule("financeiro");
+  const showTabs = canManageAllRegisters || hasFinanceiro;
   const [tab, setTab] = useState("caixa");
 
   // --- Caixa (T5.1/T5.2) ---
@@ -185,20 +189,29 @@ export function FinanceiroScreen({
       <PageHeader
         title="Caixa"
         description={
-          hasFinanceiro
-            ? "Caixa do dia, demonstrativo e relatórios de vendas."
-            : "Abertura, fechamento e movimento do caixa do dia."
+          canManageAllRegisters
+            ? "Abertura, fechamento e relatório de vendas do período."
+            : hasFinanceiro
+              ? "Caixa do dia, demonstrativo e relatórios de vendas."
+              : "Abertura, fechamento e movimento do caixa do dia."
         }
       />
 
       <PageBody>
       <Tabs value={tab} onValueChange={(value) => setTab(value as string)}>
-        {hasFinanceiro ? (
+        {showTabs ? (
         <PageToolbar>
           <TabsList className="h-auto w-full flex-wrap justify-start sm:w-fit">
             <TabsTrigger value="caixa">Caixa</TabsTrigger>
-            <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            {canManageAllRegisters && (
+              <TabsTrigger value="relatorio">Relatório</TabsTrigger>
+            )}
+            {hasFinanceiro && (
+              <>
+                <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
+                <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+              </>
+            )}
           </TabsList>
         </PageToolbar>
         ) : null}
@@ -365,6 +378,12 @@ export function FinanceiroScreen({
             </TableBody>
           </Table>
         </TabsContent>
+
+        {canManageAllRegisters && (
+          <TabsContent value="relatorio" className="mt-4">
+            <CaixaReportTab canSeeCost={canSeeCost} />
+          </TabsContent>
+        )}
 
         <TabsContent value="demonstrativo" className="mt-4">
           <PageToolbar>

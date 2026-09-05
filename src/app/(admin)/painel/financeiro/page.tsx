@@ -30,6 +30,7 @@ export default async function FinanceiroPage() {
   return (
     <FinanceiroScreen
       canManageAllRegisters={hasPerm(access.permissions, "gerenciar:caixas")}
+      canSeeCost={hasPerm(access.permissions, "ver:custo-produto")}
     />
   );
 }

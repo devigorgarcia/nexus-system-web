@@ -59,3 +59,39 @@ export interface DreReport {
   cogs: string;
   margin: string;
 }
+
+export type CashSalesReportPeriod = "dia" | "semana" | "mes";
+
+export interface CashSalesReportProduct {
+  productId: string;
+  productName: string;
+  quantitySold: string;
+  revenue: string;
+  cost?: string;
+  profit?: string;
+}
+
+export interface CashSalesReportHighlight {
+  productId: string;
+  productName: string;
+  quantitySold?: string;
+  profit?: string;
+}
+
+export interface CashSalesReport {
+  period: CashSalesReportPeriod;
+  from: string;
+  totals: {
+    quantitySold: string;
+    revenue: string;
+    cost?: string;
+    profit?: string;
+  };
+  products: CashSalesReportProduct[];
+  highlights: {
+    mostSold: CashSalesReportHighlight | null;
+    leastSold: CashSalesReportHighlight | null;
+    mostProfit?: CashSalesReportHighlight | null;
+    leastProfit?: CashSalesReportHighlight | null;
+  };
+}
