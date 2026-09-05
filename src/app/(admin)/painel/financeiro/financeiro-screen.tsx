@@ -22,14 +22,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { useHasModule } from "@/lib/modules-context";
 import {
@@ -46,8 +38,6 @@ import type {
   CashRegisterOverview,
   CashRegistersPage,
   DreReport,
-  SalesByEmployeeRow,
-  SalesByProductReport,
 } from "./types";
 
 function todayIso() {
@@ -174,22 +164,6 @@ export function FinanceiroScreen({
     void apiFetch<DreReport>(`/reports/dre?from=${dreFrom}&to=${dreTo}`).then(setDre);
   }, [tab, dreFrom, dreTo]);
 
-  // --- Relatórios (T5.3/T5.4) ---
-  const [reportFrom, setReportFrom] = useState(monthAgoIso());
-  const [reportTo, setReportTo] = useState(todayIso());
-  const [byProduct, setByProduct] = useState<SalesByProductReport | null>(null);
-  const [byEmployee, setByEmployee] = useState<SalesByEmployeeRow[]>([]);
-
-  useEffect(() => {
-    if (tab !== "relatorios") return;
-    void apiFetch<SalesByProductReport>(
-      `/reports/sales-by-product?from=${reportFrom}&to=${reportTo}`,
-    ).then(setByProduct);
-    void apiFetch<SalesByEmployeeRow[]>(
-      `/reports/sales-by-employee?from=${reportFrom}&to=${reportTo}`,
-    ).then(setByEmployee);
-  }, [tab, reportFrom, reportTo]);
-
   return (
     <div>
       <PageHeader
@@ -198,7 +172,7 @@ export function FinanceiroScreen({
           canManageAllRegisters
             ? "Opere o seu caixa ou acompanhe os caixas abertos da loja."
             : hasFinanceiro
-              ? "Caixa do dia, demonstrativo e relatórios de vendas."
+              ? "Caixa do dia e demonstrativo."
               : "Abertura, fechamento e movimento do seu caixa."
         }
       />
@@ -216,10 +190,7 @@ export function FinanceiroScreen({
               </>
             )}
             {hasFinanceiro && (
-              <>
-                <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
-                <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
-              </>
+              <TabsTrigger value="demonstrativo">Demonstrativo</TabsTrigger>
             )}
           </TabsList>
         </PageToolbar>
@@ -370,78 +341,6 @@ export function FinanceiroScreen({
               </Card>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="relatorios" className="mt-4">
-          <PageToolbar>
-            <div>
-              <Label htmlFor="report-from" className="text-sm">
-                De
-              </Label>
-              <Input
-                id="report-from"
-                type="date"
-                value={reportFrom}
-                onChange={(e) => setReportFrom(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="report-to" className="text-sm">
-                Até
-              </Label>
-              <Input
-                id="report-to"
-                type="date"
-                value={reportTo}
-                onChange={(e) => setReportTo(e.target.value)}
-              />
-            </div>
-          </PageToolbar>
-
-          <h2 className="mb-3 font-heading text-lg">Vendas por produto</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>Quantidade</TableHead>
-                <TableHead>Receita</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {byProduct?.byProduct.map((row) => (
-                <TableRow key={row.productId}>
-                  <TableCell>{row.productName}</TableCell>
-                  <TableCell>{row.quantitySold}</TableCell>
-                  <TableCell>{formatCurrency(row.revenue)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {byProduct && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Total do período: {formatCurrency(byProduct.totalRevenue)}
-            </p>
-          )}
-
-          <h2 className="mt-6 mb-3 font-heading text-lg">Vendas por funcionário</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendedor</TableHead>
-                <TableHead>Vendas</TableHead>
-                <TableHead>Receita</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {byEmployee.map((row) => (
-                <TableRow key={row.vendedorId}>
-                  <TableCell>{row.vendedorName}</TableCell>
-                  <TableCell>{row.salesCount}</TableCell>
-                  <TableCell>{formatCurrency(row.revenue)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
         </TabsContent>
       </Tabs>
 
