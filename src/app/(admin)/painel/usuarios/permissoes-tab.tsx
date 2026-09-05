@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { apiFetch, alertApiError, ApiError } from "@/lib/api-client";
+import { hasModule } from "@/lib/modules";
+import { useEnabledModules } from "@/lib/modules-context";
 import type { PermissionCatalogItem, RoleListItem } from "./types";
 
 function groupCatalog(catalog: PermissionCatalogItem[]) {
@@ -31,13 +33,26 @@ function groupCatalog(catalog: PermissionCatalogItem[]) {
 }
 
 export function PermissoesTab() {
+  const enabledModules = useEnabledModules();
   const [roles, setRoles] = useState<RoleListItem[]>([]);
   const [catalog, setCatalog] = useState<PermissionCatalogItem[]>([]);
   const [newRoleName, setNewRoleName] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const catalogGroups = useMemo(() => groupCatalog(catalog), [catalog]);
+  const visibleCatalog = useMemo(
+    () =>
+      catalog.filter((permission) =>
+        permission.module
+          ? hasModule(enabledModules, permission.module)
+          : false,
+      ),
+    [catalog, enabledModules],
+  );
+  const catalogGroups = useMemo(
+    () => groupCatalog(visibleCatalog),
+    [visibleCatalog],
+  );
 
   async function reload() {
     const [rolesData, catalogData] = await Promise.all([
@@ -73,10 +88,14 @@ export function PermissoesTab() {
   }
 
   async function togglePermission(role: RoleListItem, code: string) {
+    const visible = new Set(visibleCatalog.map((item) => item.code));
     const currentCodes = role.rolePermissions.map((rp) => rp.permission.code);
-    const nextCodes = currentCodes.includes(code)
-      ? currentCodes.filter((c) => c !== code)
-      : [...currentCodes, code];
+    const hidden = currentCodes.filter((item) => !visible.has(item));
+    const currentVisible = currentCodes.filter((item) => visible.has(item));
+    const nextVisible = currentVisible.includes(code)
+      ? currentVisible.filter((item) => item !== code)
+      : [...currentVisible, code];
+    const nextCodes = [...nextVisible, ...hidden];
 
     await apiFetch(`/roles/${role.id}`, {
       method: "PATCH",

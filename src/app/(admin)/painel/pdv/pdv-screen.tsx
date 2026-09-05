@@ -93,12 +93,9 @@ export function PdvScreen({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
-  // Grade começa em "Mais vendidos" (em vez de vazia até o usuário digitar):
-  // o design mostra a grade de produtos já preenchida ao abrir o PDV. Uma
-  // grade com o catálogo inteiro por padrão exigiria relaxar o contrato do
-  // /products/search (hoje `q` obrigatório e resultado não paginado, T4.3 —
-  // de propósito, pra nunca despejar o catálogo inteiro de uma vez), então
-  // "mais vendidos" é o proxy mais próximo sem mexer nesse contrato.
+  // Grade começa em "Mais vendidos". Sem busca e sem categoria, não
+  // despeja o catálogo inteiro (`/products/search` só lista sem `q`
+  // quando há categoryId).
   const [showTopProducts, setShowTopProducts] = useState(true);
   const [topPeriod, setTopPeriod] = useState<"dia" | "semana" | "mes">("dia");
   const [topProducts, setTopProducts] = useState<TopProductItem[]>([]);
@@ -129,12 +126,14 @@ export function PdvScreen({
   }, [query]);
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
+    const q = debouncedQuery.trim();
+    if (!q && !categoryFilter) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchResults([]);
       return;
     }
-    const params = new URLSearchParams({ q: debouncedQuery });
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
     if (categoryFilter) params.set("categoryId", categoryFilter);
     void apiFetch<SearchResultItem[]>(
       `/products/search?${params.toString()}`,
@@ -330,6 +329,11 @@ export function PdvScreen({
               onChange={(value, option) => {
                 setCategoryFilter(value);
                 setCategoryFilterLabel(value ? (option?.label ?? "") : "");
+                if (value) {
+                  setShowTopProducts(false);
+                } else if (!query.trim()) {
+                  setShowTopProducts(true);
+                }
               }}
             />
             <Button
@@ -338,7 +342,14 @@ export function PdvScreen({
               className="h-11 shrink-0"
               onClick={() => {
                 setQuery("");
-                setShowTopProducts((prev) => !prev);
+                setShowTopProducts((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setCategoryFilter("");
+                    setCategoryFilterLabel("");
+                  }
+                  return next;
+                });
               }}
             >
               <Star className="size-3.5" />
@@ -369,7 +380,9 @@ export function PdvScreen({
             <p className="col-span-full rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
               {showTopProducts
                 ? "Nenhuma venda paga no período."
-                : "Digite pra buscar um produto."}
+                : categoryFilter
+                  ? "Nenhum produto nesta categoria."
+                  : "Digite pra buscar um produto."}
             </p>
           )}
           {gridItems.map((item) => (
