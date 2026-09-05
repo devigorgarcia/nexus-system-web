@@ -4,13 +4,11 @@ import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { authOptions } from "@/lib/auth";
 import { getLiveAccess } from "@/lib/live-access";
 import { hasModule } from "@/lib/modules";
+import { hasPerm } from "@/lib/permissions";
 import { PdvScreen } from "./pdv-screen";
 
-// PDV (T4.4) — prioridade nº1 do produto (constitution.md §1.6), também é o
-// destino padrão pós-login (login/page.tsx). Sem gate de permissão: qualquer
-// funcionário logado opera o PDV, Vendedor incluso (nasce sem nenhuma
-// permissão granular, permission-catalog.ts). Só o módulo `vendas` (rota
-// /painel-admin) precisa estar habilitado.
+// PDV (T4.4) — módulo `vendas` + permissão `acessar:pdv` (Vendedor nasce
+// com ela). Destino padrão pós-login quando o usuário tem essa permissão.
 export default async function PdvPage() {
   const session = await getServerSession(authOptions);
 
@@ -18,15 +16,18 @@ export default async function PdvPage() {
     redirect("/login");
   }
 
-  if (!session.user.enabledModules.includes("vendas")) {
-    // getDefaultRoute nunca aponta de volta pro PDV aqui (a lista de seções
-    // é calculada com o mesmo enabledModules que reprovou este guard, então
-    // exclui o PDV) — sem risco de loop. `null` só no caso raro de a empresa
-    // não ter módulo nenhum liberado pra este usuário: sem outro lugar pra
-    // mandar, mostra uma tela mínima em vez de redirecionar pra si mesmo.
+  const access = (await getLiveAccess()) ?? {
+    permissions: session.user.permissions,
+    enabledModules: session.user.enabledModules,
+  };
+
+  if (
+    !access.enabledModules.includes("vendas") ||
+    !hasPerm(access.permissions, "acessar:pdv")
+  ) {
     const fallback = getDefaultRoute({
-      permissions: session.user.permissions,
-      enabledModules: session.user.enabledModules,
+      permissions: access.permissions,
+      enabledModules: access.enabledModules,
     });
     if (fallback) {
       redirect(fallback);
@@ -42,11 +43,7 @@ export default async function PdvPage() {
     );
   }
 
-  const access = (await getLiveAccess()) ?? {
-    permissions: session.user.permissions,
-    enabledModules: session.user.enabledModules,
-  };
-  const canSelectVendedor = access.permissions.includes("selecionar:vendedor");
+  const canSelectVendedor = hasPerm(access.permissions, "selecionar:vendedor");
 
   return (
     <PdvScreen

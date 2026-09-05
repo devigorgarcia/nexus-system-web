@@ -1,26 +1,26 @@
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth/next";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
-import { authOptions } from "@/lib/auth";
+import { getLiveAccess } from "@/lib/live-access";
+import { hasPerm } from "@/lib/permissions";
 import { PedidosScreen } from "./pedidos-screen";
 
-// Fila de Pedidos (T4.7) — sem gate de permissão: qualquer funcionário
-// logado opera a fila, Vendedor incluso (mesmo padrão do PDV, T4.4). Escopo
-// fino (Vendedor só vê a própria venda) é aplicado no backend (T4.8's IDOR,
-// spec.md §14), nunca no frontend. Só o módulo `vendas` (rota /painel-admin)
-// precisa estar habilitado — mesma chave do PDV, uma entidade `Sale` só.
+// Fila de Pedidos (T4.7) — módulo `vendas` + permissão `acessar:pedidos`.
+// Escopo fino (Vendedor só vê a própria venda) continua no backend.
 export default async function PedidosPage() {
-  const session = await getServerSession(authOptions);
+  const access = await getLiveAccess();
 
-  if (!session) {
+  if (!access) {
     redirect("/login");
   }
 
-  if (!session.user.enabledModules.includes("vendas")) {
+  if (
+    !access.enabledModules.includes("vendas") ||
+    !hasPerm(access.permissions, "acessar:pedidos")
+  ) {
     redirect(
       getDefaultRoute({
-        permissions: session.user.permissions,
-        enabledModules: session.user.enabledModules,
+        permissions: access.permissions,
+        enabledModules: access.enabledModules,
       }) ?? "/painel/pdv",
     );
   }

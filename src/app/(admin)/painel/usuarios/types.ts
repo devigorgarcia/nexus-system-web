@@ -20,4 +20,7 @@ export interface RoleListItem {
 export interface PermissionCatalogItem {
   code: string;
   description: string;
+  module?: string;
+  moduleLabel?: string;
+  label?: string;
 }

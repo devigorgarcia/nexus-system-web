@@ -1,4 +1,5 @@
 import { hasModule } from "@/lib/modules";
+import { hasAnyPerm, hasPerm } from "@/lib/permissions";
 
 export type NavSection = {
   href: string;
@@ -58,42 +59,60 @@ export function getNavSections({
   const hasFiscal = enabledModules.includes("fiscal");
   const hasOnline = enabledModules.includes("online");
 
-  const canManageProducts = hasProdutos && permissions.includes("gerenciar:produtos");
+  const canManageProducts =
+    hasProdutos && hasPerm(permissions, "gerenciar:produtos");
+  const canManageCategories =
+    hasProdutos &&
+    hasAnyPerm(permissions, ["gerenciar:categorias", "gerenciar:produtos"]);
+  const canManageSubcategories =
+    hasProdutos &&
+    hasAnyPerm(permissions, ["gerenciar:subcategorias", "gerenciar:produtos"]);
+  const canManageImports =
+    hasProdutos &&
+    hasAnyPerm(permissions, ["gerenciar:importacoes", "gerenciar:produtos"]);
+  const canManageStock =
+    hasEstoque &&
+    hasAnyPerm(permissions, ["gerenciar:estoque", "gerenciar:produtos"]);
   const canManagePromotions =
-    hasPromocoes && permissions.includes("gerenciar:promocoes");
+    hasPromocoes && hasPerm(permissions, "gerenciar:promocoes");
   const canManageUsers =
-    hasCadastros && permissions.includes("gerenciar:usuarios");
-  const canManageRoles =
-    hasCadastros && permissions.includes("gerenciar:papeis");
-  const canAccessFinance = hasFinanceiro && permissions.includes("acessar:financeiro");
+    hasCadastros && hasPerm(permissions, "gerenciar:usuarios");
+  const canManageRoles = hasCadastros && hasPerm(permissions, "gerenciar:papeis");
+  const canAccessCaixa = hasVendas && hasPerm(permissions, "acessar:caixa");
+  const canAccessPayables =
+    hasFinanceiro && hasPerm(permissions, "acessar:contas-pagar");
+  const canAccessReceivables =
+    hasFinanceiro && hasPerm(permissions, "acessar:contas-receber");
+  const canAccessCardMachine =
+    hasFinanceiro && hasPerm(permissions, "acessar:maquininha");
+  const canAccessFiscal = hasFiscal && hasPerm(permissions, "acessar:fiscal");
+  const canAccessContabil =
+    hasFiscal && hasPerm(permissions, "acessar:contabil");
 
-  // PDV/Pedidos (Fase 4, constitution.md §1.6 — prioridade nº1) sem gate de
-  // permissão: qualquer funcionário logado opera as duas telas, Vendedor
-  // incluso (nasce sem nenhuma permissão granular). Módulo `vendas` é o
-  // único gate delas.
   const sections: (NavSection | false)[] = [
-    hasVendas && {
-      href: "/painel/pdv",
-      title: "PDV",
-      description: "Montar carrinho e enviar pedido pra fila de pagamento.",
-      sidebar: true,
-      group: "Vendas",
-    },
-    hasVendas && {
-      href: "/painel/pedidos",
-      title: "Pedidos",
-      description: "Cobrar pedidos pendentes e conferir o histórico.",
-      sidebar: true,
-      group: "Vendas",
-    },
     hasVendas &&
-      permissions.includes("acessar:financeiro") && {
-        href: "/painel/financeiro",
-        title: "Caixa",
-        description: "Abertura, fechamento e movimento do caixa do dia.",
+      hasPerm(permissions, "acessar:pdv") && {
+        href: "/painel/pdv",
+        title: "PDV",
+        description: "Montar carrinho e enviar pedido pra fila de pagamento.",
         sidebar: true,
         group: "Vendas",
       },
+    hasVendas &&
+      hasPerm(permissions, "acessar:pedidos") && {
+        href: "/painel/pedidos",
+        title: "Pedidos",
+        description: "Cobrar pedidos pendentes e conferir o histórico.",
+        sidebar: true,
+        group: "Vendas",
+      },
+    canAccessCaixa && {
+      href: "/painel/financeiro",
+      title: "Caixa",
+      description: "Abertura, fechamento e movimento do caixa do dia.",
+      sidebar: true,
+      group: "Vendas",
+    },
     hasOnline && {
       href: "/painel/venda-online",
       title: "Venda online",
@@ -110,35 +129,34 @@ export function getNavSections({
       sidebar: true,
       group: "Produtos",
     },
-    canManageProducts && {
+    canManageCategories && {
       href: "/painel/produtos/categorias",
       title: "Categorias",
       description: "Organize os produtos por categoria.",
       sidebar: true,
       group: "Produtos",
     },
-    canManageProducts && {
+    canManageSubcategories && {
       href: "/painel/produtos/subcategorias",
       title: "Subcategorias",
       description: "Refine a organização dentro de cada categoria.",
       sidebar: true,
       group: "Produtos",
     },
-    canManageProducts && {
+    canManageImports && {
       href: "/painel/produtos/importacoes",
       title: "Importação",
       description: "Planilha de fornecedor e fila de revisão.",
       sidebar: true,
       group: "Produtos",
     },
-    hasEstoque &&
-      permissions.includes("gerenciar:produtos") && {
-        href: "/painel/produtos/estoque",
-        title: "Estoque",
-        description: "Saldo por produto e histórico de movimentações.",
-        sidebar: true,
-        group: "Produtos",
-      },
+    canManageStock && {
+      href: "/painel/produtos/estoque",
+      title: "Estoque",
+      description: "Saldo por produto e histórico de movimentações.",
+      sidebar: true,
+      group: "Produtos",
+    },
     canManagePromotions && {
       href: "/painel/produtos/promocoes",
       title: "Promoções",
@@ -147,50 +165,48 @@ export function getNavSections({
       group: "Produtos",
     },
     hasCompras &&
-      permissions.includes("gerenciar:compras") && {
+      hasPerm(permissions, "gerenciar:compras") && {
         href: "/painel/compras",
         title: "Compras",
         description: "Pedidos de compra e recebimento de mercadoria.",
         sidebar: true,
         group: "Compras",
       },
-    canAccessFinance && {
+    canAccessPayables && {
       href: "/painel/contas-a-pagar",
       title: "Contas a pagar",
       description: "Notas de fornecedor e parcelas.",
       sidebar: true,
       group: "Financeiro",
     },
-    canAccessFinance && {
+    canAccessReceivables && {
       href: "/painel/contas-a-receber",
       title: "Contas a receber",
       description: "Recebimentos gerados pelas vendas pagas.",
       sidebar: true,
       group: "Financeiro",
     },
-    canAccessFinance && {
+    canAccessCardMachine && {
       href: "/painel/maquininha",
       title: "Maquininha",
       description: "Taxas da operadora e o que cai na conta.",
       sidebar: true,
       group: "Financeiro",
     },
-    hasFiscal &&
-      permissions.includes("acessar:financeiro") && {
-        href: "/painel/fiscal",
-        title: "Fiscal",
-        description: "Configuração da loja e NFC-e simulada.",
-        sidebar: true,
-        group: "Fiscal",
-      },
-    hasFiscal &&
-      permissions.includes("acessar:financeiro") && {
-        href: "/painel/contabil",
-        title: "Contábil",
-        description: "DRE, contas a pagar e a receber do período.",
-        sidebar: true,
-        group: "Fiscal",
-      },
+    canAccessFiscal && {
+      href: "/painel/fiscal",
+      title: "Fiscal",
+      description: "Configuração da loja e NFC-e simulada.",
+      sidebar: true,
+      group: "Fiscal",
+    },
+    canAccessContabil && {
+      href: "/painel/contabil",
+      title: "Contábil",
+      description: "DRE, contas a pagar e a receber do período.",
+      sidebar: true,
+      group: "Fiscal",
+    },
     (canManageUsers || canManageRoles) && {
       href: "/painel/usuarios",
       title: "Usuários",
@@ -199,7 +215,7 @@ export function getNavSections({
       group: "Cadastros",
     },
     hasCadastros &&
-      permissions.includes("gerenciar:clientes") && {
+      hasPerm(permissions, "gerenciar:clientes") && {
         href: "/painel/clientes",
         title: "Clientes",
         description: "Cadastro de clientes da loja.",
@@ -207,7 +223,7 @@ export function getNavSections({
         group: "Cadastros",
       },
     hasCadastros &&
-      permissions.includes("gerenciar:fornecedores") && {
+      hasPerm(permissions, "gerenciar:fornecedores") && {
         href: "/painel/fornecedores",
         title: "Fornecedores",
         description: "Cadastro de fornecedores.",

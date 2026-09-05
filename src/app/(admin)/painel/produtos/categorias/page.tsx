@@ -15,7 +15,8 @@ export default async function CategoriasPage() {
 
   const canManageProducts =
     session.user.enabledModules.includes("produtos") &&
-    session.user.permissions.includes("gerenciar:produtos");
+    (session.user.permissions.includes("gerenciar:categorias") ||
+      session.user.permissions.includes("gerenciar:produtos"));
 
   if (!canManageProducts) {
     redirect(

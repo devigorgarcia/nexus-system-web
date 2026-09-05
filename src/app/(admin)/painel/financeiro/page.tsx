@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { getLiveAccess } from "@/lib/live-access";
+import { hasPerm } from "@/lib/permissions";
 import { FinanceiroScreen } from "./financeiro-screen";
 
 // Caixa (abertura/fechamento) agora vive no módulo `vendas` — é operação
@@ -15,7 +16,7 @@ export default async function FinanceiroPage() {
 
   const canAccessCaixa =
     access.enabledModules.includes("vendas") &&
-    access.permissions.includes("acessar:financeiro");
+    hasPerm(access.permissions, "acessar:caixa");
 
   if (!canAccessCaixa) {
     redirect(
@@ -26,5 +27,9 @@ export default async function FinanceiroPage() {
     );
   }
 
-  return <FinanceiroScreen />;
+  return (
+    <FinanceiroScreen
+      canManageAllRegisters={hasPerm(access.permissions, "gerenciar:caixas")}
+    />
+  );
 }

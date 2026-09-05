@@ -111,7 +111,7 @@ export function PdvScreen({
 
   const [finalizing, setFinalizing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [lastSaleNumber, setLastSaleNumber] = useState<number | null>(null);
 
   useEffect(() => {
     if (canSelectVendedor) {
@@ -280,15 +280,12 @@ export function PdvScreen({
       if (canSelectCustomer && selectedCustomerId) {
         body.customerId = selectedCustomerId;
       }
-      await apiFetch<CreatedSale>("/sales", {
+      const created = await apiFetch<CreatedSale>("/sales", {
         method: "POST",
         body: JSON.stringify(body),
       });
       setCart([]);
-      setSuccessMessage(
-        "Pedido enviado pra fila de Pedidos — cobrança acontece lá.",
-      );
-      setTimeout(() => setSuccessMessage(null), 4000);
+      setLastSaleNumber(created.number);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erro ao finalizar venda.");
     } finally {
@@ -313,7 +310,7 @@ export function PdvScreen({
             <div className="relative min-w-0 w-full sm:flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome ou bipar código…"
+                placeholder="Buscar por nome, descrição ou bipar código…"
                 value={query}
                 onChange={(e) => {
                   setShowTopProducts(false);
@@ -532,8 +529,15 @@ export function PdvScreen({
         </div>
 
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-        {successMessage && (
-          <p className="mt-2 text-sm text-success">{successMessage}</p>
+        {lastSaleNumber != null && (
+          <div className="mt-3 rounded-lg border border-success/40 bg-success/10 p-3 text-center">
+            <p className="text-xs text-muted-foreground">
+              Passe este número pro cliente na hora de pagar
+            </p>
+            <p className="font-heading text-3xl text-success">
+              nº {lastSaleNumber}
+            </p>
+          </div>
         )}
 
         <Button

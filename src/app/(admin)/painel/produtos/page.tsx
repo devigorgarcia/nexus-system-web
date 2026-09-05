@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { getLiveAccess } from "@/lib/live-access";
+import { hasPerm } from "@/lib/permissions";
 import { ProdutosScreen } from "./produtos-screen";
 
 // Tela de cadastro de produtos (T3.5) — precisa do módulo `produtos`
@@ -14,7 +15,7 @@ export default async function ProdutosPage() {
 
   const canManageProducts =
     access.enabledModules.includes("produtos") &&
-    access.permissions.includes("gerenciar:produtos");
+    hasPerm(access.permissions, "gerenciar:produtos");
 
   if (!canManageProducts) {
     redirect(
@@ -25,5 +26,7 @@ export default async function ProdutosPage() {
     );
   }
 
-  return <ProdutosScreen />;
+  return (
+    <ProdutosScreen canSeeCost={hasPerm(access.permissions, "ver:custo-produto")} />
+  );
 }

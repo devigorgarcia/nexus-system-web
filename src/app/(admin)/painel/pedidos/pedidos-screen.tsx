@@ -326,8 +326,8 @@ export function PedidosScreen() {
         <TableBody>
           {salesPage?.items.map((sale) => (
             <TableRow key={sale.id}>
-              <TableCell className="font-mono text-xs">
-                {sale.id.slice(0, 8)}
+              <TableCell className="font-mono text-sm font-semibold">
+                nº {sale.number}
               </TableCell>
               <TableCell>
                 <SaleItemsPreview items={sale.items} total={saleTotal(sale)} />
@@ -589,6 +589,9 @@ export function PedidosScreen() {
                 <div key={copy} className="border-b border-dashed pb-4 last:border-b-0">
                   <p className="mb-1 text-center font-semibold">
                     Nexus — {copy}
+                  </p>
+                  <p className="mb-1 text-center text-sm font-semibold">
+                    Pedido nº {receipt.number}
                   </p>
                   <p className="mb-2 text-center">
                     {new Date(receipt.paidAt ?? receipt.createdAt).toLocaleString(

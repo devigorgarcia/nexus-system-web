@@ -11,7 +11,8 @@ export async function requireMaquininhaAccess() {
 
   const canAccess =
     access.enabledModules.includes("financeiro") &&
-    access.permissions.includes("acessar:financeiro");
+    (access.permissions.includes("acessar:maquininha") ||
+      access.permissions.includes("acessar:financeiro"));
 
   if (!canAccess) {
     redirect(

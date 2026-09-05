@@ -13,7 +13,8 @@ export default async function FiscalPage() {
 
   const canAccess =
     session.user.enabledModules.includes("fiscal") &&
-    session.user.permissions.includes("acessar:financeiro");
+    (session.user.permissions.includes("acessar:fiscal") ||
+      session.user.permissions.includes("acessar:financeiro"));
 
   if (!canAccess) {
     redirect(

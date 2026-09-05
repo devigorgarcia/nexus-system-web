@@ -13,7 +13,8 @@ export default async function ContasAPagarPage() {
 
   const canAccessFinance =
     session.user.enabledModules.includes("financeiro") &&
-    session.user.permissions.includes("acessar:financeiro");
+    (session.user.permissions.includes("acessar:contas-pagar") ||
+      session.user.permissions.includes("acessar:financeiro"));
 
   if (!canAccessFinance) {
     redirect(

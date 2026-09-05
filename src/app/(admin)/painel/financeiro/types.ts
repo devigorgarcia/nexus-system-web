@@ -18,6 +18,19 @@ export interface CashRegistersPage {
   pageSize: number;
 }
 
+export interface CashRegisterOverviewItem extends CashRegisterItem {
+  cashSales: string;
+  expectedNow: string;
+}
+
+export interface CashRegisterOverview {
+  openCount: number;
+  openingTotal: string;
+  cashSalesTotal: string;
+  expectedTotal: string;
+  registers: CashRegisterOverviewItem[];
+}
+
 export interface SalesByProductRow {
   productId: string;
   productName: string;

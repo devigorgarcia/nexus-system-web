@@ -43,5 +43,6 @@ export interface CartLine {
 
 export interface CreatedSale {
   id: string;
+  number: number;
   status: string;
 }

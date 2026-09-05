@@ -16,7 +16,8 @@ export default async function ImportacoesPage() {
 
   const canManageProducts =
     session.user.enabledModules.includes("produtos") &&
-    session.user.permissions.includes("gerenciar:produtos");
+    (session.user.permissions.includes("gerenciar:importacoes") ||
+      session.user.permissions.includes("gerenciar:produtos"));
 
   if (!canManageProducts) {
     redirect(

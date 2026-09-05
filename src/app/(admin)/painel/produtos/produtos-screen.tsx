@@ -88,7 +88,7 @@ const EMPTY_FORM: ProductFormState = {
   pricePerUnit: "",
 };
 
-export function ProdutosScreen() {
+export function ProdutosScreen({ canSeeCost = false }: { canSeeCost?: boolean }) {
   const hasEstoque = useHasModule("estoque");
   const [productsPage, setProductsPage] = useState<ProductsPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -221,11 +221,10 @@ export function ProdutosScreen() {
         name: form.name,
         // Vazio = não manda: no create a API gera o SKU sequencial; no
         // update, campo omitido não é tocado.
-        sku: form.sku.trim() || undefined,
         barcode: form.barcode.trim() || undefined,
         description: form.description || undefined,
         imageUrl: form.imageUrl || undefined,
-        costPrice: form.costPrice,
+        ...(canSeeCost ? { costPrice: form.costPrice } : {}),
         salePrice: form.salePrice,
         categoryId: form.categoryId || undefined,
         subcategoryId: form.subcategoryId || undefined,
@@ -398,7 +397,7 @@ export function ProdutosScreen() {
             <TableHead>Produto</TableHead>
             <TableHead>SKU</TableHead>
             <TableHead>Categoria</TableHead>
-            <TableHead>Custo</TableHead>
+            {canSeeCost ? <TableHead>Custo</TableHead> : null}
             <TableHead>Venda</TableHead>
             {hasEstoque ? <TableHead>Estoque</TableHead> : null}
             <TableHead className="text-right">Ação</TableHead>
@@ -408,7 +407,7 @@ export function ProdutosScreen() {
           {!loading && productsPage?.items.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={hasEstoque ? 7 : 6}
+                colSpan={(hasEstoque ? 6 : 5) + (canSeeCost ? 1 : 0)}
                 className="text-center text-muted-foreground"
               >
                 Nenhum produto encontrado.
@@ -443,13 +442,15 @@ export function ProdutosScreen() {
                 )}
               </TableCell>
               <TableCell>{product.category?.name ?? "Sem categoria"}</TableCell>
-              <TableCell>
-                {product.costPrice ? `R$ ${product.costPrice}` : "—"}
-              </TableCell>
+              {canSeeCost ? (
+                <TableCell>
+                  {product.costPrice ? `R$ ${product.costPrice}` : "—"}
+                </TableCell>
+              ) : null}
               <TableCell>R$ {product.salePrice}</TableCell>
               {hasEstoque ? (
                 <TableCell>
-                  {formatQuantity(product.stock, product.unitType)}
+                  {formatQuantity(product.stock ?? "0", product.unitType)}
                 </TableCell>
               ) : null}
               <TableCell className="text-right">
@@ -527,17 +528,14 @@ export function ProdutosScreen() {
                 <Label htmlFor="product-sku">SKU (código interno)</Label>
                 <Input
                   id="product-sku"
-                  value={form.sku}
-                  placeholder={form.id ? "" : "Automático"}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, sku: e.target.value }))
-                  }
+                  value={form.id ? form.sku : ""}
+                  placeholder="Gerado automaticamente"
+                  readOnly
+                  disabled
                 />
-                {!form.id && (
-                  <p className="text-xs text-muted-foreground">
-                    Vazio gera sequencial (00001, 00002…).
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Sequencial da loja, gerado ao salvar.
+                </p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="product-barcode">Código de barras</Label>
@@ -599,18 +597,20 @@ export function ProdutosScreen() {
             </div>
 
             <div className="flex gap-3">
-              <div className="flex flex-1 flex-col gap-1.5">
-                <Label htmlFor="product-cost">
-                  {priceFieldLabels(form.unitType).cost}
-                </Label>
-                <MoneyInput
-                  id="product-cost"
-                  value={form.costPrice}
-                  onChange={(costPrice) =>
-                    setForm((prev) => ({ ...prev, costPrice }))
-                  }
-                />
-              </div>
+              {canSeeCost ? (
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <Label htmlFor="product-cost">
+                    {priceFieldLabels(form.unitType).cost}
+                  </Label>
+                  <MoneyInput
+                    id="product-cost"
+                    value={form.costPrice}
+                    onChange={(costPrice) =>
+                      setForm((prev) => ({ ...prev, costPrice }))
+                    }
+                  />
+                </div>
+              ) : null}
               <div className="flex flex-1 flex-col gap-1.5">
                 <Label htmlFor="product-sale">
                   {priceFieldLabels(form.unitType).sale}
@@ -780,7 +780,7 @@ export function ProdutosScreen() {
                 saving ||
                 uploadingImage ||
                 !form.name ||
-                !form.costPrice ||
+                (canSeeCost && !form.costPrice) ||
                 !form.salePrice
               }
             >

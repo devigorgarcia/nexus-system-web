@@ -35,6 +35,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { useHasModule } from "@/lib/modules-context";
 import type {
   CashRegisterItem,
+  CashRegisterOverview,
   CashRegistersPage,
   DreReport,
   SalesByEmployeeRow,
@@ -58,13 +59,19 @@ function monthAgoIso() {
   return date.toISOString().slice(0, 10);
 }
 
-export function FinanceiroScreen() {
+export function FinanceiroScreen({
+  canManageAllRegisters = false,
+}: {
+  canManageAllRegisters?: boolean;
+}) {
   const hasFinanceiro = useHasModule("financeiro");
   const [tab, setTab] = useState("caixa");
 
   // --- Caixa (T5.1/T5.2) ---
   const [current, setCurrent] = useState<CashRegisterItem | null>(null);
+  const [overview, setOverview] = useState<CashRegisterOverview | null>(null);
   const [history, setHistory] = useState<CashRegistersPage | null>(null);
+  const [closingRegisterId, setClosingRegisterId] = useState<string | null>(null);
   const [openDialogOpen, setOpenDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [openingAmount, setOpeningAmount] = useState("");
@@ -84,13 +91,17 @@ export function FinanceiroScreen() {
 
   async function reloadCaixa() {
     const seq = ++reloadSeq.current;
-    const [currentData, historyData] = await Promise.all([
+    const [currentData, historyData, overviewData] = await Promise.all([
       apiFetch<CashRegisterItem | null>("/cash-register/current"),
       apiFetch<CashRegistersPage>("/cash-register?pageSize=10"),
+      canManageAllRegisters
+        ? apiFetch<CashRegisterOverview>("/cash-register/overview")
+        : Promise.resolve(null),
     ]);
     if (seq !== reloadSeq.current) return;
     setCurrent(currentData);
     setHistory(historyData);
+    setOverview(overviewData);
   }
 
   useEffect(() => {
@@ -116,22 +127,31 @@ export function FinanceiroScreen() {
   }
 
   async function handleCloseCaixa() {
-    if (!current) return;
+    const targetId = closingRegisterId ?? current?.id;
+    if (!targetId) return;
     setCashSaving(true);
     setCashError(null);
     try {
-      await apiFetch(`/cash-register/${current.id}/close`, {
+      await apiFetch(`/cash-register/${targetId}/close`, {
         method: "POST",
         body: JSON.stringify({ closingAmount }),
       });
       setCloseDialogOpen(false);
       setClosingAmount("");
+      setClosingRegisterId(null);
       await reloadCaixa();
     } catch (err) {
       setCashError(err instanceof ApiError ? err.message : "Erro ao fechar caixa.");
     } finally {
       setCashSaving(false);
     }
+  }
+
+  function openCloseDialog(registerId: string) {
+    setClosingRegisterId(registerId);
+    setClosingAmount("");
+    setCashError(null);
+    setCloseDialogOpen(true);
   }
 
   // --- Demonstrativo / DRE (T5.5) ---
@@ -184,10 +204,90 @@ export function FinanceiroScreen() {
         ) : null}
 
         <TabsContent value="caixa" className="mt-4">
+          {canManageAllRegisters && overview && (
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Caixas abertos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {overview.openCount}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Soma das aberturas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {formatCurrency(overview.openingTotal)}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Dinheiro recebido
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {formatCurrency(overview.cashSalesTotal)}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Esperado nas gavetas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {formatCurrency(overview.expectedTotal)}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {canManageAllRegisters && overview && overview.registers.length > 0 && (
+            <div className="mb-6">
+              <h2 className="mb-3 font-heading text-lg">Caixas abertos agora</h2>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {overview.registers.map((register) => (
+                  <Card key={register.id}>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle className="text-base">
+                        {register.responsavel.name}
+                      </CardTitle>
+                      <Badge className="bg-success text-success-foreground">
+                        aberto
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-1 text-sm">
+                      <p>Abertura: {formatCurrency(register.openingAmount)}</p>
+                      <p>Dinheiro: {formatCurrency(register.cashSales)}</p>
+                      <p>Esperado: {formatCurrency(register.expectedNow)}</p>
+                      <p className="text-muted-foreground">
+                        Aberto em{" "}
+                        {new Date(register.openedAt).toLocaleString("pt-BR")}
+                      </p>
+                      <Button
+                        className="mt-2 w-fit"
+                        onClick={() => openCloseDialog(register.id)}
+                      >
+                        Fechar este caixa
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Caixa de hoje</CardTitle>
+                <CardTitle>Meu caixa</CardTitle>
                 {current && (
                   <Badge className="bg-success text-success-foreground">aberto</Badge>
                 )}
@@ -202,16 +302,16 @@ export function FinanceiroScreen() {
                     </p>
                     <Button
                       className="mt-2 w-fit"
-                      onClick={() => setCloseDialogOpen(true)}
+                      onClick={() => openCloseDialog(current.id)}
                     >
-                      Fechar caixa
+                      Fechar meu caixa
                     </Button>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 text-sm">
-                    <p className="text-muted-foreground">Nenhum caixa aberto.</p>
+                    <p className="text-muted-foreground">Seu caixa está fechado.</p>
                     <Button className="w-fit" onClick={() => setOpenDialogOpen(true)}>
-                      Abrir caixa
+                      Abrir meu caixa
                     </Button>
                   </div>
                 )}

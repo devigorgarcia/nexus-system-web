@@ -15,6 +15,7 @@ export type PaymentMethod = "DINHEIRO" | "CARTAO_CREDITO" | "CARTAO_DEBITO" | "P
 
 export interface SaleItemRecord {
   id: string;
+  number: number;
   status: "PENDENTE" | "PAGO";
   paymentMethod: PaymentMethod | null;
   installments: number | null;

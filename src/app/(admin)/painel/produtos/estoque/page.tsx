@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getDefaultRoute } from "@/app/(admin)/nav-sections";
 import { getLiveAccess } from "@/lib/live-access";
 import { hasModule } from "@/lib/modules";
+import { hasAnyPerm } from "@/lib/permissions";
 import { EstoqueScreen } from "./estoque-screen";
 
 // Tela de estoque e movimentação (T3.7) — precisa do módulo `estoque`
@@ -17,7 +18,7 @@ export default async function EstoquePage() {
 
   const canManageProducts =
     hasModule(access.enabledModules, "estoque") &&
-    access.permissions.includes("gerenciar:produtos");
+    hasAnyPerm(access.permissions, ["gerenciar:estoque", "gerenciar:produtos"]);
 
   if (!canManageProducts) {
     redirect(
