@@ -14,6 +14,22 @@ export function unitSuffix(unitType: ProductUnitType): string {
   return "";
 }
 
+/** Rótulo da quantidade no relatório: sempre explícito (unidade / kg / m / L). */
+export function quantityUnitLabel(unitType: ProductUnitType): string {
+  return unitSuffix(unitType) || "unidade";
+}
+
+export function formatQuantityWithUnit(
+  value: string | number,
+  unitType: ProductUnitType,
+): string {
+  const amount = Number(value);
+  const formatted = Number.isFinite(amount)
+    ? amount.toLocaleString("pt-BR", { maximumFractionDigits: 3 })
+    : String(value);
+  return `${formatted} ${quantityUnitLabel(unitType)}`;
+}
+
 export function priceFieldLabels(unitType: ProductUnitType) {
   const suffix = unitSuffix(unitType);
   if (!suffix) {

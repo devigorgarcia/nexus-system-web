@@ -60,11 +60,21 @@ export interface DreReport {
   margin: string;
 }
 
-export type CashSalesReportPeriod = "dia" | "semana" | "mes";
+export type CashSalesReportPeriod =
+  | "dia"
+  | "semana"
+  | "mes"
+  | "personalizado";
+
+export type AbcClass = "A" | "B" | "C";
 
 export interface CashSalesReportProduct {
   productId: string;
   productName: string;
+  unitType: "UNIDADE" | "METRO" | "PESO" | "VOLUME";
+  abcClass: AbcClass;
+  revenueShare: string;
+  cumulativeShare: string;
   quantitySold: string;
   revenue: string;
   cost?: string;
@@ -74,13 +84,21 @@ export interface CashSalesReportProduct {
 export interface CashSalesReportHighlight {
   productId: string;
   productName: string;
-  quantitySold?: string;
   profit?: string;
+}
+
+export interface CashSalesReportAbcBucket {
+  productCount: number;
+  quantitySold: string;
+  revenue: string;
+  share: string;
+  itemShare: string;
 }
 
 export interface CashSalesReport {
   period: CashSalesReportPeriod;
   from: string;
+  to: string;
   totals: {
     quantitySold: string;
     revenue: string;
@@ -89,8 +107,7 @@ export interface CashSalesReport {
   };
   products: CashSalesReportProduct[];
   highlights: {
-    mostSold: CashSalesReportHighlight | null;
-    leastSold: CashSalesReportHighlight | null;
+    abc: Record<AbcClass, CashSalesReportAbcBucket>;
     mostProfit?: CashSalesReportHighlight | null;
     leastProfit?: CashSalesReportHighlight | null;
   };
