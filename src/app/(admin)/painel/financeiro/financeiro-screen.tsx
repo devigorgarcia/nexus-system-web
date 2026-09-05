@@ -37,11 +37,20 @@ import { CaixaReportTab } from "./caixa-report-tab";
 import type {
   CashRegisterItem,
   CashRegisterOverview,
+  CashRegisterPaymentMethod,
+  CashRegisterSale,
   CashRegistersPage,
   DreReport,
   SalesByEmployeeRow,
   SalesByProductReport,
 } from "./types";
+
+const PAYMENT_LABELS: Record<CashRegisterPaymentMethod, string> = {
+  DINHEIRO: "Dinheiro",
+  CARTAO_CREDITO: "Cartão de crédito",
+  CARTAO_DEBITO: "Cartão de débito",
+  PIX: "PIX",
+};
 
 function formatCurrency(value: string | number) {
   return Number(value).toLocaleString("pt-BR", {
@@ -75,6 +84,9 @@ export function FinanceiroScreen({
   const [current, setCurrent] = useState<CashRegisterItem | null>(null);
   const [overview, setOverview] = useState<CashRegisterOverview | null>(null);
   const [history, setHistory] = useState<CashRegistersPage | null>(null);
+  const [historyDetail, setHistoryDetail] = useState<CashRegisterItem | null>(
+    null,
+  );
   const [closingRegisterId, setClosingRegisterId] = useState<string | null>(null);
   const [openDialogOpen, setOpenDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
@@ -106,6 +118,7 @@ export function FinanceiroScreen({
     setCurrent(currentData);
     setHistory(historyData);
     setOverview(overviewData);
+    setHistoryDetail(null);
   }
 
   useEffect(() => {
@@ -218,7 +231,7 @@ export function FinanceiroScreen({
 
         <TabsContent value="caixa" className="mt-4">
           {canManageAllRegisters && overview && (
-            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm text-muted-foreground">
@@ -242,7 +255,17 @@ export function FinanceiroScreen({
               <Card>
                 <CardHeader>
                   <CardTitle className="text-sm text-muted-foreground">
-                    Dinheiro recebido
+                    Vendido nos caixas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold">
+                  {formatCurrency(overview.salesTotal ?? overview.cashSalesTotal)}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm text-muted-foreground">
+                    Dinheiro na gaveta
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-2xl font-semibold">
@@ -278,12 +301,25 @@ export function FinanceiroScreen({
                     </CardHeader>
                     <CardContent className="flex flex-col gap-1 text-sm">
                       <p>Abertura: {formatCurrency(register.openingAmount)}</p>
+                      <p>
+                        Vendido: {formatCurrency(register.totalSales ?? "0")}{" "}
+                        ({register.salesCount ?? 0}{" "}
+                        {(register.salesCount ?? 0) === 1
+                          ? "pedido"
+                          : "pedidos"}
+                        )
+                      </p>
                       <p>Dinheiro: {formatCurrency(register.cashSales)}</p>
-                      <p>Esperado: {formatCurrency(register.expectedNow)}</p>
+                      <p>
+                        PIX: {formatCurrency(register.pixSales ?? "0")} · Cartão:{" "}
+                        {formatCurrency(register.cardSales ?? "0")}
+                      </p>
+                      <p>Esperado na gaveta: {formatCurrency(register.expectedNow)}</p>
                       <p className="text-muted-foreground">
                         Aberto em{" "}
                         {new Date(register.openedAt).toLocaleString("pt-BR")}
                       </p>
+                      <RegisterSalesTable sales={register.sales ?? []} />
                       <Button
                         className="mt-2 w-fit"
                         onClick={() => openCloseDialog(register.id)}
@@ -297,7 +333,7 @@ export function FinanceiroScreen({
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Meu caixa</CardTitle>
@@ -311,7 +347,22 @@ export function FinanceiroScreen({
                     <p>Responsável: {current.responsavel.name}</p>
                     <p>Abertura: {formatCurrency(current.openingAmount)}</p>
                     <p>
+                      Vendido: {formatCurrency(current.totalSales ?? "0")}{" "}
+                      ({current.salesCount ?? 0}{" "}
+                      {(current.salesCount ?? 0) === 1 ? "pedido" : "pedidos"})
+                    </p>
+                    <p>
+                      Dinheiro: {formatCurrency(current.cashSales ?? "0")} · PIX:{" "}
+                      {formatCurrency(current.pixSales ?? "0")} · Cartão:{" "}
+                      {formatCurrency(current.cardSales ?? "0")}
+                    </p>
+                    <p>
                       Aberto em: {new Date(current.openedAt).toLocaleString("pt-BR")}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Todo pedido cobrado neste caixa entra aqui, em qualquer
+                      forma de pagamento. O esperado da gaveta soma só o
+                      dinheiro.
                     </p>
                     <Button
                       className="mt-2 w-fit"
@@ -322,7 +373,10 @@ export function FinanceiroScreen({
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2 text-sm">
-                    <p className="text-muted-foreground">Seu caixa está fechado.</p>
+                    <p className="text-muted-foreground">
+                      Seu caixa está fechado. Abra o caixa para cobrar pedidos
+                      — cada pagamento fica registrado nesta gaveta.
+                    </p>
                     <Button className="w-fit" onClick={() => setOpenDialogOpen(true)}>
                       Abrir meu caixa
                     </Button>
@@ -330,6 +384,14 @@ export function FinanceiroScreen({
                 )}
               </CardContent>
             </Card>
+            {current && (
+              <div>
+                <h2 className="mb-3 font-heading text-lg">
+                  Pedidos deste caixa
+                </h2>
+                <RegisterSalesTable sales={current.sales ?? []} />
+              </div>
+            )}
           </div>
 
           <h2 className="mt-6 mb-3 font-heading text-lg">Histórico</h2>
@@ -347,7 +409,15 @@ export function FinanceiroScreen({
             </TableHeader>
             <TableBody>
               {history?.items.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow
+                  key={item.id}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    void apiFetch<CashRegisterItem>(
+                      `/cash-register/${item.id}`,
+                    ).then(setHistoryDetail);
+                  }}
+                >
                   <TableCell>
                     <Badge
                       className={
@@ -377,6 +447,16 @@ export function FinanceiroScreen({
               ))}
             </TableBody>
           </Table>
+          {historyDetail && (
+            <div className="mt-4">
+              <h3 className="mb-2 font-heading text-base">
+                Pedidos do caixa de {historyDetail.responsavel.name}
+                {" · "}
+                {new Date(historyDetail.openedAt).toLocaleString("pt-BR")}
+              </h3>
+              <RegisterSalesTable sales={historyDetail.sales ?? []} />
+            </div>
+          )}
         </TabsContent>
 
         {canManageAllRegisters && (
@@ -570,5 +650,48 @@ export function FinanceiroScreen({
       </Dialog>
       </PageBody>
     </div>
+  );
+}
+
+function RegisterSalesTable({ sales }: { sales: CashRegisterSale[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Pedido</TableHead>
+          <TableHead>Vendedor</TableHead>
+          <TableHead>Pagamento</TableHead>
+          <TableHead>Valor</TableHead>
+          <TableHead>Pago em</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {sales.length ? (
+          sales.map((sale) => (
+            <TableRow key={sale.id}>
+              <TableCell>#{sale.number}</TableCell>
+              <TableCell>{sale.vendedor.name}</TableCell>
+              <TableCell>
+                {sale.paymentMethod
+                  ? PAYMENT_LABELS[sale.paymentMethod]
+                  : "—"}
+              </TableCell>
+              <TableCell>{formatCurrency(sale.total)}</TableCell>
+              <TableCell>
+                {sale.paidAt
+                  ? new Date(sale.paidAt).toLocaleString("pt-BR")
+                  : "—"}
+              </TableCell>
+            </TableRow>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={5} className="text-muted-foreground">
+              Nenhum pedido cobrado neste caixa.
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
   );
 }
