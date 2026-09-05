@@ -105,14 +105,14 @@ export function OverviewKpis({ overview }: { overview: CashRegisterOverview }) {
 
   return (
     <div className="rounded-lg border border-border bg-card px-5 py-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-0">
+      <div className="flex flex-col divide-y divide-border sm:flex-row sm:flex-wrap sm:items-end sm:divide-y-0 sm:gap-x-0">
         {figures.map((figure, index) => (
           <div
             key={figure.label}
             className={
               index === 0
-                ? "sm:pr-8"
-                : "sm:border-l sm:border-border sm:px-8"
+                ? "py-4 first:pt-0 last:pb-0 sm:py-0 sm:pr-8"
+                : "py-4 first:pt-0 last:pb-0 sm:py-0 sm:border-l sm:border-border sm:px-8"
             }
           >
             <p className="text-sm text-muted-foreground">{figure.label}</p>
@@ -142,10 +142,10 @@ export function OpenRegisterCard({
   const salesCount = register.salesCount ?? 0;
 
   return (
-    <article className="rounded-lg border border-border bg-card px-5 py-6">
-      <header className="flex items-start justify-between gap-3">
+    <article className="overflow-hidden rounded-lg border border-border bg-card">
+      <header className="flex items-start justify-between gap-3 border-b border-border bg-card px-5 py-5">
         <div>
-          <h3 className="font-heading text-2xl leading-none">
+          <h3 className="font-heading text-2xl leading-none text-[#9A8060]">
             {register.responsavel.name}
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -155,7 +155,8 @@ export function OpenRegisterCard({
         <Badge className="bg-success text-success-foreground">aberto</Badge>
       </header>
 
-      <div className="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border sm:grid-cols-3">
+      <div className="px-5 py-6">
+      <div className="grid grid-cols-1 gap-px overflow-hidden rounded-md bg-border sm:grid-cols-3">
         <div className="bg-card px-4 py-3">
           <p className="text-sm text-muted-foreground">Deve ter na gaveta</p>
           <p className="mt-1 font-heading text-4xl leading-none tabular-nums">
@@ -201,6 +202,7 @@ export function OpenRegisterCard({
 
       <div className="mt-4">
         <Button onClick={onClose}>Fechar este caixa</Button>
+      </div>
       </div>
     </article>
   );
